@@ -1,0 +1,42 @@
+{
+  "schema_version": "nero.disclosure.import-receipt.v1",
+  "note": "虚构样例导入回执，资产均为本仓库生成的样例文件。",
+  "assets": [
+    {
+      "target": "data/public/originals/fixture-rule-4-1-7.pdf",
+      "sha256": "bb90d10a0c268085292467c7e04d6c2ffb745180ab9e512bfb94c70a79f31691"
+    },
+    {
+      "target": "data/public/originals/fixture-case-related-1.pdf",
+      "sha256": "3c85468dd4975d5b36dec3050ccaf3666aef0429598ff002239c4743ecf8a4a2"
+    },
+    {
+      "target": "data/public/documents/fixture-case-imported-1.json",
+      "sha256": "a1c28ed51bec5e2480e87125102564b1bade14b62140d030d4741e3ac6a20443"
+    },
+    {
+      "target": "data/public/documents/fixture-case-notice-1.json",
+      "sha256": "e0e50559037f99da7fe9404652d2172e9befbf32b2470c925ef866b22ae3d6a4"
+    },
+    {
+      "target": "templates/imports/chinext/board_resolution.docx",
+      "sha256": "9d6c1fe66af1d551e458f189a558a52cc7cc736e2783d55295ecfdf98c3118c9"
+    },
+    {
+      "target": "templates/imports/chinext/shareholder_notice.docx",
+      "sha256": "9d6c1fe66af1d551e458f189a558a52cc7cc736e2783d55295ecfdf98c3118c9"
+    },
+    {
+      "target": "templates/imports/chinext/management_change.docx",
+      "sha256": "9d6c1fe66af1d551e458f189a558a52cc7cc736e2783d55295ecfdf98c3118c9"
+    },
+    {
+      "target": "templates/imports/chinext/related_transaction.docx",
+      "sha256": "9d6c1fe66af1d551e458f189a558a52cc7cc736e2783d55295ecfdf98c3118c9"
+    },
+    {
+      "target": "templates/imports/chinext/litigation_arbitration.docx",
+      "sha256": "9d6c1fe66af1d551e458f189a558a52cc7cc736e2783d55295ecfdf98c3118c9"
+    }
+  ]
+}

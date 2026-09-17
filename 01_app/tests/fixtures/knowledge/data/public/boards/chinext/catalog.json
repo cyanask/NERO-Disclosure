@@ -1,0 +1,608 @@
+{
+  "schema_version": "nero.disclosure.knowledge.v2",
+  "as_of": "2026-01-01",
+  "scope": {
+    "layers": [
+      "chinext"
+    ],
+    "event_kinds": [
+      "board_resolution",
+      "shareholder_notice",
+      "management_change",
+      "related_transaction",
+      "litigation_arbitration"
+    ],
+    "coverage_claim": "fictional_development_fixture_only"
+  },
+  "board": "chinext",
+  "scope_notice": "本目录是开发用虚构样例，不含真实法规、公告、案例或监管决定，不得用于任何信息披露判断或对外交付。",
+  "scope_review_id": "fixture-scope-review-1",
+  "sources": [
+    {
+      "id": "szse-chinext-2026-4.1.7",
+      "title": "【样例】创业板信息披露虚构规则（非官方文本）",
+      "article": "4.1.7",
+      "text": "4.1.7 公司董事会决议涉及须经股东会审议的事项，或者涉及其他应当披露的重大信息的，公司应当及时履行披露义务。",
+      "url": "https://www.szse.cn/fixture/szse-chinext-2026-4.1.7",
+      "source_kind": "official_rule",
+      "instrument_id": "szse-chinext-listing-2026-verified",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "as_of": "2026-01-01",
+      "event_kinds": [
+        "board_resolution",
+        "shareholder_notice",
+        "management_change",
+        "related_transaction",
+        "litigation_arbitration"
+      ],
+      "verification_status": "official_original_indexed",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": "data/public/originals/fixture-rule-4-1-7.pdf",
+      "sha256": "bb90d10a0c268085292467c7e04d6c2ffb745180ab9e512bfb94c70a79f31691",
+      "pages": 1,
+      "limitations": [
+        "虚构样例条款，仅用于开发与测试。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "text_sha256": "1abed18d34b0b0ed6a1ba6ea107fc88f4e5b9ccf30664665b7ca663895c12bdf"
+    },
+    {
+      "id": "szse-chinext-2026-5.1.1",
+      "title": "【样例】创业板信息披露虚构规则（非官方文本）",
+      "article": "5.1.1",
+      "text": "5.1.1 上市公司应当及时、公平地披露所有可能对公司股票及其衍生品种交易价格或者投资决策产生较大影响的信息或事项。",
+      "url": "https://www.szse.cn/fixture/szse-chinext-2026-5.1.1",
+      "source_kind": "official_rule",
+      "instrument_id": "szse-chinext-listing-2026-verified",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "as_of": "2026-01-01",
+      "event_kinds": [
+        "board_resolution"
+      ],
+      "verification_status": "official_original_indexed",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "sha256": null,
+      "pages": 1,
+      "limitations": [
+        "虚构样例条款，仅用于开发与测试。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "text_sha256": "166a57fe109e525dde32723854bb12b7ede61becc0df80d7e3ac602e77d28047"
+    },
+    {
+      "id": "szse-chinext-2026-3.2.1",
+      "title": "【样例】创业板信息披露虚构规则（非官方文本）",
+      "article": "3.2.1",
+      "text": "3.2.1 公司召开股东会的，应当在年度股东会二十日前、临时股东会十五日前发出通知并披露。",
+      "url": "https://www.szse.cn/fixture/szse-chinext-2026-3.2.1",
+      "source_kind": "official_rule",
+      "instrument_id": "szse-chinext-listing-2026-verified",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "as_of": "2026-01-01",
+      "event_kinds": [
+        "shareholder_notice"
+      ],
+      "verification_status": "official_original_indexed",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "sha256": null,
+      "pages": 1,
+      "limitations": [
+        "虚构样例条款，仅用于开发与测试。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "text_sha256": "90f82b6ed3f33d6a674e8330c286fbeb77384b351db6498fe19f289331946851"
+    },
+    {
+      "id": "szse-chinext-2026-6.3.1",
+      "title": "【样例】创业板信息披露虚构规则（非官方文本）",
+      "article": "6.3.1",
+      "text": "6.3.1 公司董事、高级管理人员发生任免、辞任或者届满换届的，应当及时披露人员变动公告。",
+      "url": "https://www.szse.cn/fixture/szse-chinext-2026-6.3.1",
+      "source_kind": "official_rule",
+      "instrument_id": "szse-chinext-listing-2026-verified",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "as_of": "2026-01-01",
+      "event_kinds": [
+        "management_change"
+      ],
+      "verification_status": "official_original_indexed",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "sha256": null,
+      "pages": 1,
+      "limitations": [
+        "虚构样例条款，仅用于开发与测试。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "text_sha256": "015c502bdce41a7450a97932146c26d5c58f078830d81a09155ceecf815fbb01"
+    },
+    {
+      "id": "szse-chinext-2026-8.7.2",
+      "title": "【样例】创业板信息披露虚构规则（非官方文本）",
+      "article": "8.7.2",
+      "text": "8.7.2 公司与关联人发生交易达到规定标准的，应当履行审议程序并披露关联交易公告。",
+      "url": "https://www.szse.cn/fixture/szse-chinext-2026-8.7.2",
+      "source_kind": "official_rule",
+      "instrument_id": "szse-chinext-listing-2026-verified",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "as_of": "2026-01-01",
+      "event_kinds": [
+        "related_transaction"
+      ],
+      "verification_status": "official_original_indexed",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "sha256": null,
+      "pages": 1,
+      "limitations": [
+        "虚构样例条款，仅用于开发与测试。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "text_sha256": "8c7e03eabf4c2f58fb73d89a93b555d1664b82f8a7031bee092b01ab5b49b644"
+    },
+    {
+      "id": "szse-chinext-2026-9.1.1",
+      "title": "【样例】创业板信息披露虚构规则（非官方文本）",
+      "article": "9.1.1",
+      "text": "9.1.1 公司发生重大诉讼、仲裁事项的，应当及时披露案件受理、进展及裁判结果。",
+      "url": "https://www.szse.cn/fixture/szse-chinext-2026-9.1.1",
+      "source_kind": "official_rule",
+      "instrument_id": "szse-chinext-listing-2026-verified",
+      "effective_from": "2025-01-01",
+      "effective_to": null,
+      "as_of": "2026-01-01",
+      "event_kinds": [
+        "litigation_arbitration"
+      ],
+      "verification_status": "official_original_indexed",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "sha256": null,
+      "pages": 1,
+      "limitations": [
+        "虚构样例条款，仅用于开发与测试。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "text_sha256": "69fe61499b06bceb3f6eabf7faa185654a9338a3a7555472722b886adf05a4b0"
+    }
+  ],
+  "cases": [
+    {
+      "id": "fixture-case-imported-1",
+      "stock_code": "300001",
+      "company": "样例科技股份有限公司",
+      "kind": "board_resolution",
+      "subtype": "board_resolution",
+      "published_at": "2025-06-18",
+      "title": "样例公司董事会决议公告（虚构待核样例）",
+      "text": "样例公司董事会决议公告（待核导入样例）\n一、会议召开情况\n二、审议情况",
+      "source_kind": "imported_case_candidate",
+      "verification_status": "imported_source_unverified",
+      "as_of": "2026-01-01",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "document_path": "data/public/documents/fixture-case-imported-1.json",
+      "sha256": null,
+      "document_sha256": "a1c28ed51bec5e2480e87125102564b1bade14b62140d030d4741e3ac6a20443",
+      "text_completeness": "imported_text_unverified",
+      "page_count": 1,
+      "layer_at_publication": "chinext",
+      "limitations": [
+        "虚构待核样例，不构成证据。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "eligible_as_case_evidence": false,
+      "case_admission_status": "pending_official_original",
+      "case_scope": {},
+      "retention_decision": "fictional_development_fixture"
+    },
+    {
+      "id": "fixture-case-related-1",
+      "stock_code": "300002",
+      "company": "样例制造股份有限公司",
+      "kind": "related_transaction",
+      "subtype": "related_transaction",
+      "published_at": "2025-08-01",
+      "title": "样例公司关联交易公告（虚构样例）",
+      "text": "样例公司关联交易公告\n一、交易概述\n二、关联方与关联关系\n三、交易对价与审议程序",
+      "source_kind": "official_case",
+      "verification_status": "official_original_indexed",
+      "as_of": "2026-01-01",
+      "url": "https://www.szse.cn/fixture/fixture-case-related-1",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": "data/public/originals/fixture-case-related-1.pdf",
+      "document_path": "data/public/documents/fixture-case-related-1.json",
+      "sha256": "3c85468dd4975d5b36dec3050ccaf3666aef0429598ff002239c4743ecf8a4a2",
+      "document_sha256": "76f74d2e432a1f7b8562102b89977d461241bda32b37bf89eaef476578da817b",
+      "text_completeness": "fictional_fixture_page_text",
+      "page_count": 1,
+      "layer_at_publication": "chinext",
+      "practice_role": "fictional_practice_sample",
+      "limitations": [
+        "虚构样例，不代表任何真实公司实践。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "eligible_as_case_evidence": true,
+      "case_admission_status": "admitted_as_fictional_sample",
+      "case_scope": {
+        "verified_board_at_publication": "chinext"
+      },
+      "retention_decision": "fictional_development_fixture"
+    },
+    {
+      "id": "fixture-case-notice-1",
+      "stock_code": "300003",
+      "company": "样例贸易股份有限公司",
+      "kind": "shareholder_notice",
+      "subtype": "shareholder_notice",
+      "published_at": "2025-07-02",
+      "title": "样例公司股东会通知公告（虚构待核样例）",
+      "text": "样例公司股东会通知公告（待核导入样例）\n一、会议基本情况",
+      "source_kind": "imported_case_candidate",
+      "verification_status": "imported_source_unverified",
+      "as_of": "2026-01-01",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "document_path": "data/public/documents/fixture-case-notice-1.json",
+      "sha256": null,
+      "document_sha256": "e0e50559037f99da7fe9404652d2172e9befbf32b2470c925ef866b22ae3d6a4",
+      "text_completeness": "imported_text_unverified",
+      "page_count": 1,
+      "layer_at_publication": "chinext",
+      "limitations": [
+        "虚构待核样例，不构成证据。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "eligible_as_case_evidence": false,
+      "case_admission_status": "pending_official_original",
+      "case_scope": {},
+      "retention_decision": "fictional_development_fixture"
+    },
+    {
+      "id": "fixture-case-pending-1",
+      "stock_code": "300101",
+      "company": "样例待核公司1",
+      "kind": "management_change",
+      "subtype": "management_change",
+      "published_at": "2025-09-01",
+      "title": "待核样例资料1（虚构）",
+      "text": "待核样例正文，仅用于开发测试。",
+      "source_kind": "imported_case_candidate",
+      "verification_status": "imported_source_unverified",
+      "as_of": "2026-01-01",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "document_path": null,
+      "sha256": null,
+      "document_sha256": null,
+      "text_completeness": "unverified_import_text",
+      "page_count": 0,
+      "layer_at_publication": "chinext",
+      "limitations": [
+        "虚构待核样例，不构成证据。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "eligible_as_case_evidence": false,
+      "case_admission_status": "pending_official_original",
+      "case_scope": {},
+      "retention_decision": "fictional_development_fixture"
+    },
+    {
+      "id": "fixture-case-pending-2",
+      "stock_code": "300102",
+      "company": "样例待核公司2",
+      "kind": "management_change",
+      "subtype": "management_change",
+      "published_at": "2025-09-01",
+      "title": "待核样例资料2（虚构）",
+      "text": "待核样例正文，仅用于开发测试。",
+      "source_kind": "imported_case_candidate",
+      "verification_status": "imported_source_unverified",
+      "as_of": "2026-01-01",
+      "retrieval_method": "fictional_fixture_authoring",
+      "original_path": null,
+      "document_path": null,
+      "sha256": null,
+      "document_sha256": null,
+      "text_completeness": "unverified_import_text",
+      "page_count": 0,
+      "layer_at_publication": "chinext",
+      "limitations": [
+        "虚构待核样例，不构成证据。"
+      ],
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "scope_review_status": "fictional_fixture_not_for_business_use",
+      "eligible_as_case_evidence": false,
+      "case_admission_status": "pending_official_original",
+      "case_scope": {},
+      "retention_decision": "fictional_development_fixture"
+    }
+  ],
+  "blacklist_cases": [
+    {
+      "id": "fixture-blacklist-1",
+      "title": "【样例】虚构监管决定（material_omission）",
+      "company": "样例违规公司1",
+      "stock_code": "300201",
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "source_kind": "blacklist_case",
+      "layer_at_misconduct": "chinext",
+      "case_scope": {
+        "verified_board_at_misconduct": "chinext"
+      },
+      "admission_status": "admitted",
+      "verification_status": "official_decision_verified",
+      "disposition_type": "administrative_penalty",
+      "authority": "虚构监管机关",
+      "decision_date": "2025-03-01",
+      "decision_number": "虚构〔2025〕1号",
+      "announcement_kinds": [
+        "annual_report"
+      ],
+      "violation_types": [
+        "material_omission"
+      ],
+      "wrongdoing_summary": "虚构样例：信息披露文件存在与事实不符的表述。",
+      "regulator_finding": "虚构样例：构成信息披露违规。",
+      "drafting_checks": [
+        "核对披露文件与事实一致性"
+      ],
+      "evidence_complete": false,
+      "text": "虚构监管决定书正文，用于开发测试检索与引用。",
+      "evidence_documents": [
+        {
+          "id": "fixture-blacklist-1-decision",
+          "role": "regulatory_decision",
+          "title": "虚构监管决定书",
+          "url": "https://www.gov.cn/fixture/fixture-blacklist-1",
+          "original_path": "data/public/originals/fixture-decision-1.pdf",
+          "document_path": "data/public/documents/fixture-decision-1.json",
+          "sha256": "fcb0019a583568416bb5ad85a79f05809675840273dbc29554c49c58850741c5",
+          "document_sha256": "950cbb9f2a2f9de118cfdab8f614a70feba3c77f7c8f0a94da81054574861592",
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "fixture-blacklist-2",
+      "title": "【样例】虚构监管决定（false_record）",
+      "company": "样例违规公司2",
+      "stock_code": "300202",
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "source_kind": "blacklist_case",
+      "layer_at_misconduct": "chinext",
+      "case_scope": {
+        "verified_board_at_misconduct": "chinext"
+      },
+      "admission_status": "admitted",
+      "verification_status": "official_decision_verified",
+      "disposition_type": "administrative_penalty",
+      "authority": "虚构监管机关",
+      "decision_date": "2026-05-01",
+      "decision_number": "虚构〔2026〕2号",
+      "announcement_kinds": [
+        "annual_report"
+      ],
+      "violation_types": [
+        "false_record"
+      ],
+      "wrongdoing_summary": "虚构样例：信息披露文件存在与事实不符的表述。",
+      "regulator_finding": "虚构样例：构成信息披露违规。",
+      "drafting_checks": [
+        "核对披露文件与事实一致性"
+      ],
+      "evidence_complete": false,
+      "text": "虚构监管决定书正文，用于开发测试检索与引用。",
+      "evidence_documents": [
+        {
+          "id": "fixture-blacklist-2-decision",
+          "role": "regulatory_decision",
+          "title": "虚构监管决定书",
+          "url": "https://www.gov.cn/fixture/fixture-blacklist-2",
+          "original_path": "data/public/originals/fixture-decision-1.pdf",
+          "document_path": "data/public/documents/fixture-decision-1.json",
+          "sha256": "fcb0019a583568416bb5ad85a79f05809675840273dbc29554c49c58850741c5",
+          "document_sha256": "950cbb9f2a2f9de118cfdab8f614a70feba3c77f7c8f0a94da81054574861592",
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "fixture-blacklist-3",
+      "title": "【样例】虚构监管决定（delayed_disclosure）",
+      "company": "样例违规公司3",
+      "stock_code": "300203",
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "source_kind": "blacklist_case",
+      "layer_at_misconduct": "chinext",
+      "case_scope": {
+        "verified_board_at_misconduct": "chinext"
+      },
+      "admission_status": "admitted",
+      "verification_status": "official_decision_verified",
+      "disposition_type": "supervisory_letter",
+      "authority": "虚构监管机关",
+      "decision_date": "2026-01-15",
+      "decision_number": "虚构〔2026〕3号",
+      "announcement_kinds": [
+        "annual_report"
+      ],
+      "violation_types": [
+        "delayed_disclosure"
+      ],
+      "wrongdoing_summary": "虚构样例：信息披露文件存在与事实不符的表述。",
+      "regulator_finding": "虚构样例：构成信息披露违规。",
+      "drafting_checks": [
+        "核对披露文件与事实一致性"
+      ],
+      "evidence_complete": false,
+      "text": "虚构监管决定书正文，用于开发测试检索与引用。",
+      "evidence_documents": [
+        {
+          "id": "fixture-blacklist-3-decision",
+          "role": "regulatory_decision",
+          "title": "虚构监管决定书",
+          "url": "https://www.gov.cn/fixture/fixture-blacklist-3",
+          "original_path": "data/public/originals/fixture-decision-1.pdf",
+          "document_path": "data/public/documents/fixture-decision-1.json",
+          "sha256": "fcb0019a583568416bb5ad85a79f05809675840273dbc29554c49c58850741c5",
+          "document_sha256": "950cbb9f2a2f9de118cfdab8f614a70feba3c77f7c8f0a94da81054574861592",
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "fixture-blacklist-4",
+      "title": "【样例】虚构监管决定（fund_occupation）",
+      "company": "样例违规公司4",
+      "stock_code": "300204",
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "source_kind": "blacklist_case",
+      "layer_at_misconduct": "chinext",
+      "case_scope": {
+        "verified_board_at_misconduct": "chinext"
+      },
+      "admission_status": "admitted",
+      "verification_status": "official_decision_verified",
+      "disposition_type": "administrative_penalty",
+      "authority": "虚构监管机关",
+      "decision_date": "2026-04-01",
+      "decision_number": "虚构〔2026〕4号",
+      "announcement_kinds": [
+        "annual_report"
+      ],
+      "violation_types": [
+        "fund_occupation"
+      ],
+      "wrongdoing_summary": "虚构样例：信息披露文件存在与事实不符的表述。",
+      "regulator_finding": "虚构样例：构成信息披露违规。",
+      "drafting_checks": [
+        "核对披露文件与事实一致性"
+      ],
+      "evidence_complete": false,
+      "text": "虚构监管决定书正文，用于开发测试检索与引用。",
+      "evidence_documents": [
+        {
+          "id": "fixture-blacklist-4-decision",
+          "role": "regulatory_decision",
+          "title": "虚构监管决定书",
+          "url": "https://www.gov.cn/fixture/fixture-blacklist-4",
+          "original_path": "data/public/originals/fixture-decision-1.pdf",
+          "document_path": "data/public/documents/fixture-decision-1.json",
+          "sha256": "fcb0019a583568416bb5ad85a79f05809675840273dbc29554c49c58850741c5",
+          "document_sha256": "950cbb9f2a2f9de118cfdab8f614a70feba3c77f7c8f0a94da81054574861592",
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "fixture-blacklist-5",
+      "title": "【样例】虚构监管决定（illegal_guarantee）",
+      "company": "样例违规公司5",
+      "stock_code": "300205",
+      "library_board": "chinext",
+      "layers": [
+        "chinext"
+      ],
+      "source_kind": "blacklist_case",
+      "layer_at_misconduct": "chinext",
+      "case_scope": {
+        "verified_board_at_misconduct": "chinext"
+      },
+      "admission_status": "admitted",
+      "verification_status": "official_decision_verified",
+      "disposition_type": "public_censure",
+      "authority": "虚构监管机关",
+      "decision_date": "2026-07-01",
+      "decision_number": "虚构〔2026〕5号",
+      "announcement_kinds": [
+        "annual_report"
+      ],
+      "violation_types": [
+        "illegal_guarantee"
+      ],
+      "wrongdoing_summary": "虚构样例：信息披露文件存在与事实不符的表述。",
+      "regulator_finding": "虚构样例：构成信息披露违规。",
+      "drafting_checks": [
+        "核对披露文件与事实一致性"
+      ],
+      "evidence_complete": false,
+      "text": "虚构监管决定书正文，用于开发测试检索与引用。",
+      "evidence_documents": [
+        {
+          "id": "fixture-blacklist-5-decision",
+          "role": "regulatory_decision",
+          "title": "虚构监管决定书",
+          "url": "https://www.gov.cn/fixture/fixture-blacklist-5",
+          "original_path": "data/public/originals/fixture-decision-1.pdf",
+          "document_path": "data/public/documents/fixture-decision-1.json",
+          "sha256": "fcb0019a583568416bb5ad85a79f05809675840273dbc29554c49c58850741c5",
+          "document_sha256": "950cbb9f2a2f9de118cfdab8f614a70feba3c77f7c8f0a94da81054574861592",
+          "page_count": 1
+        }
+      ]
+    }
+  ]
+}

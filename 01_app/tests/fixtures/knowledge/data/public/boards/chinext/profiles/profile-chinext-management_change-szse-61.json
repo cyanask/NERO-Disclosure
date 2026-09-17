@@ -1,0 +1,57 @@
+{
+  "schema_version": "nero.disclosure.profile.v1",
+  "id": "profile-chinext-management_change-szse-61",
+  "version": "1.0.0",
+  "kind": "management_change",
+  "title": "【样例】董监高变动公告（虚构样例）",
+  "layers": [
+    "chinext"
+  ],
+  "official_format_number": "szse-61",
+  "applicability": "虚构样例文种，仅用于开发与测试。",
+  "normative_source_ids": [
+    "szse-chinext-2026-6.3.1"
+  ],
+  "case_evidence": [],
+  "sections": [
+    {
+      "id": "fixture-sec-1",
+      "title": "一、事项基本情况",
+      "requirement": "说明事项基本情况。",
+      "fields": []
+    },
+    {
+      "id": "fixture-sec-2",
+      "title": "二、审议与决策程序",
+      "requirement": "说明审议与决策程序。",
+      "fields": []
+    }
+  ],
+  "semantic_review": {
+    "status": "fictional_fixture"
+  },
+  "common_fields": [],
+  "prohibited_inferences": [
+    "不得把虚构样例当作真实依据。"
+  ],
+  "format_evidence": {
+    "source_id": "szse-chinext-2026-6.3.1",
+    "sha256": null,
+    "blocks": [
+      1,
+      2
+    ]
+  },
+  "review": {
+    "kind": "fixture",
+    "by": "repository_maintainers",
+    "date": "2026-01-01",
+    "status": "fictional_fixture_not_business_reviewed",
+    "human_acceptance": false
+  },
+  "layout_profile_id": "chinext-announcement-fixture-v1",
+  "library_board": "chinext",
+  "scope_review_status": "format_and_case_evidence_pending",
+  "import_provenance": "fictional_development_fixture",
+  "retention_decision": "fictional_development_fixture"
+}

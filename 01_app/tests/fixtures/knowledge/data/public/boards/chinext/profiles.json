@@ -1,0 +1,307 @@
+[
+  {
+    "schema_version": "nero.disclosure.profile.v1",
+    "id": "profile-chinext-board_resolution-szse-01",
+    "version": "1.0.0",
+    "kind": "board_resolution",
+    "title": "【样例】董事会决议公告（虚构样例）",
+    "layers": [
+      "chinext"
+    ],
+    "official_format_number": "szse-01",
+    "applicability": "虚构样例文种，仅用于开发与测试。",
+    "normative_source_ids": [
+      "szse-chinext-2026-5.1.1"
+    ],
+    "case_evidence": [],
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ],
+    "semantic_review": {
+      "status": "fictional_fixture"
+    },
+    "common_fields": [],
+    "prohibited_inferences": [
+      "不得把虚构样例当作真实依据。"
+    ],
+    "format_evidence": {
+      "source_id": "szse-chinext-2026-5.1.1",
+      "sha256": null,
+      "blocks": [
+        1,
+        2
+      ]
+    },
+    "review": {
+      "kind": "fixture",
+      "by": "repository_maintainers",
+      "date": "2026-01-01",
+      "status": "fictional_fixture_not_business_reviewed",
+      "human_acceptance": false
+    },
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "format_and_case_evidence_pending",
+    "import_provenance": "fictional_development_fixture",
+    "retention_decision": "fictional_development_fixture"
+  },
+  {
+    "schema_version": "nero.disclosure.profile.v1",
+    "id": "profile-chinext-shareholder_notice-szse-03",
+    "version": "1.0.0",
+    "kind": "shareholder_notice",
+    "title": "【样例】股东会通知公告（虚构样例）",
+    "layers": [
+      "chinext"
+    ],
+    "official_format_number": "szse-03",
+    "applicability": "虚构样例文种，仅用于开发与测试。",
+    "normative_source_ids": [
+      "szse-chinext-2026-3.2.1"
+    ],
+    "case_evidence": [],
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ],
+    "semantic_review": {
+      "status": "fictional_fixture"
+    },
+    "common_fields": [],
+    "prohibited_inferences": [
+      "不得把虚构样例当作真实依据。"
+    ],
+    "format_evidence": {
+      "source_id": "szse-chinext-2026-3.2.1",
+      "sha256": null,
+      "blocks": [
+        1,
+        2
+      ]
+    },
+    "review": {
+      "kind": "fixture",
+      "by": "repository_maintainers",
+      "date": "2026-01-01",
+      "status": "fictional_fixture_not_business_reviewed",
+      "human_acceptance": false
+    },
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "format_and_case_evidence_pending",
+    "import_provenance": "fictional_development_fixture",
+    "retention_decision": "fictional_development_fixture"
+  },
+  {
+    "schema_version": "nero.disclosure.profile.v1",
+    "id": "profile-chinext-management_change-szse-61",
+    "version": "1.0.0",
+    "kind": "management_change",
+    "title": "【样例】董监高变动公告（虚构样例）",
+    "layers": [
+      "chinext"
+    ],
+    "official_format_number": "szse-61",
+    "applicability": "虚构样例文种，仅用于开发与测试。",
+    "normative_source_ids": [
+      "szse-chinext-2026-6.3.1"
+    ],
+    "case_evidence": [],
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ],
+    "semantic_review": {
+      "status": "fictional_fixture"
+    },
+    "common_fields": [],
+    "prohibited_inferences": [
+      "不得把虚构样例当作真实依据。"
+    ],
+    "format_evidence": {
+      "source_id": "szse-chinext-2026-6.3.1",
+      "sha256": null,
+      "blocks": [
+        1,
+        2
+      ]
+    },
+    "review": {
+      "kind": "fixture",
+      "by": "repository_maintainers",
+      "date": "2026-01-01",
+      "status": "fictional_fixture_not_business_reviewed",
+      "human_acceptance": false
+    },
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "format_and_case_evidence_pending",
+    "import_provenance": "fictional_development_fixture",
+    "retention_decision": "fictional_development_fixture"
+  },
+  {
+    "schema_version": "nero.disclosure.profile.v1",
+    "id": "profile-chinext-related_transaction-szse-17",
+    "version": "1.0.0",
+    "kind": "related_transaction",
+    "title": "【样例】关联交易公告（虚构样例）",
+    "layers": [
+      "chinext"
+    ],
+    "official_format_number": "szse-17",
+    "applicability": "虚构样例文种，仅用于开发与测试。",
+    "normative_source_ids": [
+      "szse-chinext-2026-8.7.2"
+    ],
+    "case_evidence": [
+      {
+        "case_id": "fixture-case-related-1",
+        "sha256": "3c85468dd4975d5b36dec3050ccaf3666aef0429598ff002239c4743ecf8a4a2",
+        "role": "fictional_practice_sample",
+        "observed_sections": [
+          {
+            "page": 1,
+            "quote": "样例公司关联交易公告"
+          },
+          {
+            "page": 1,
+            "quote": "一、交易概述"
+          }
+        ],
+        "application_limitations": [
+          "虚构样例，不代表真实实践。"
+        ],
+        "eligible_as_case_evidence": true
+      }
+    ],
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ],
+    "semantic_review": {
+      "status": "fictional_fixture"
+    },
+    "common_fields": [],
+    "prohibited_inferences": [
+      "不得把虚构样例当作真实依据。"
+    ],
+    "format_evidence": {
+      "source_id": "szse-chinext-2026-8.7.2",
+      "sha256": null,
+      "blocks": [
+        1,
+        2
+      ]
+    },
+    "review": {
+      "kind": "fixture",
+      "by": "repository_maintainers",
+      "date": "2026-01-01",
+      "status": "fictional_fixture_not_business_reviewed",
+      "human_acceptance": false
+    },
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "fictional_fixture_not_for_business_use",
+    "import_provenance": "fictional_development_fixture",
+    "retention_decision": "fictional_development_fixture"
+  },
+  {
+    "schema_version": "nero.disclosure.profile.v1",
+    "id": "profile-chinext-litigation_arbitration-szse-63",
+    "version": "1.0.0",
+    "kind": "litigation_arbitration",
+    "title": "【样例】重大诉讼仲裁公告（虚构样例）",
+    "layers": [
+      "chinext"
+    ],
+    "official_format_number": "szse-63",
+    "applicability": "虚构样例文种，仅用于开发与测试。",
+    "normative_source_ids": [
+      "szse-chinext-2026-9.1.1"
+    ],
+    "case_evidence": [],
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ],
+    "semantic_review": {
+      "status": "fictional_fixture"
+    },
+    "common_fields": [],
+    "prohibited_inferences": [
+      "不得把虚构样例当作真实依据。"
+    ],
+    "format_evidence": {
+      "source_id": "szse-chinext-2026-9.1.1",
+      "sha256": null,
+      "blocks": [
+        1,
+        2
+      ]
+    },
+    "review": {
+      "kind": "fixture",
+      "by": "repository_maintainers",
+      "date": "2026-01-01",
+      "status": "fictional_fixture_not_business_reviewed",
+      "human_acceptance": false
+    },
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "format_and_case_evidence_pending",
+    "import_provenance": "fictional_development_fixture",
+    "retention_decision": "fictional_development_fixture"
+  }
+]

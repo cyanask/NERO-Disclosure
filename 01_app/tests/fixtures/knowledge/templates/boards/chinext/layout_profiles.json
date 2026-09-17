@@ -1,0 +1,59 @@
+[
+  {
+    "schema_version": "nero.disclosure.layout.v1",
+    "id": "chinext-announcement-fixture-v1",
+    "version": "1.0.0",
+    "source_observations_path": "data/public/imports/chinext/layout_observations.json",
+    "source_observations_sha256": "3ac3dfb83c31a974be7f886db7e23e41dacf1d0ce50a5a41c029ce3aaaf10eb1",
+    "page": {
+      "width_mm": 210,
+      "height_mm": 297,
+      "top_mm": 25.4,
+      "bottom_mm": 25.4,
+      "left_mm": 31.75,
+      "right_mm": 31.75,
+      "header_mm": 12.7,
+      "footer_mm": 12.7
+    },
+    "fonts": {
+      "east_asia": "宋体",
+      "latin": "Times New Roman",
+      "body_pt": 12,
+      "title_pt": 14,
+      "heading_pt": 12,
+      "table_pt": 10.5,
+      "meta_pt": 10.5,
+      "footer_pt": 9
+    },
+    "paragraph": {
+      "body_line_pt": 24,
+      "first_line_indent_pt": 24,
+      "space_after_pt": 0,
+      "heading_before_pt": 12,
+      "heading_after_pt": 6,
+      "table_line_pt": 14
+    },
+    "table": {
+      "border_color": "000000",
+      "border_size_eighth_pt": 4,
+      "repeat_header": true,
+      "allow_body_row_split": true,
+      "max_columns": 8,
+      "cell_margin_dxa": 80
+    },
+    "rules": [
+      {
+        "id": "fixture_layout",
+        "basis": "fictional_fixture",
+        "evidence": "虚构样例版式，仅用于开发与测试。",
+        "choice": "样例版式数值，不构成格式要求。"
+      }
+    ],
+    "limitations": [
+      "虚构样例版式，不构成法定或监管格式要求。"
+    ],
+    "acceptance_contract": "nero.word_acceptance_receipt.v1",
+    "library_board": "chinext",
+    "scope_review_status": "layout_scope_review_required"
+  }
+]

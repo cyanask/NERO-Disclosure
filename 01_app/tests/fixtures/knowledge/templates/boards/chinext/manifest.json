@@ -1,0 +1,157 @@
+[
+  {
+    "id": "tpl-profile-chinext-board_resolution-szse-01",
+    "name": "【样例】董事会决议公告（虚构样例）",
+    "kind": "board_resolution",
+    "version": "1.0.0",
+    "file": "imports/chinext/board_resolution.docx",
+    "source_note": "虚构样例模板，仅用于开发与测试。",
+    "profile_id": "profile-chinext-board_resolution-szse-01",
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "fictional_fixture_not_for_business_use",
+    "import_provenance": "fictional_development_fixture",
+    "board_requirements": [
+      "虚构样例要求。"
+    ],
+    "retention_decision": "fictional_development_fixture",
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ]
+  },
+  {
+    "id": "tpl-profile-chinext-shareholder_notice-szse-03",
+    "name": "【样例】股东会通知公告（虚构样例）",
+    "kind": "shareholder_notice",
+    "version": "1.0.0",
+    "file": "imports/chinext/shareholder_notice.docx",
+    "source_note": "虚构样例模板，仅用于开发与测试。",
+    "profile_id": "profile-chinext-shareholder_notice-szse-03",
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "fictional_fixture_not_for_business_use",
+    "import_provenance": "fictional_development_fixture",
+    "board_requirements": [
+      "虚构样例要求。"
+    ],
+    "retention_decision": "fictional_development_fixture",
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ]
+  },
+  {
+    "id": "tpl-profile-chinext-management_change-szse-61",
+    "name": "【样例】董监高变动公告（虚构样例）",
+    "kind": "management_change",
+    "version": "1.0.0",
+    "file": "imports/chinext/management_change.docx",
+    "source_note": "虚构样例模板，仅用于开发与测试。",
+    "profile_id": "profile-chinext-management_change-szse-61",
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "fictional_fixture_not_for_business_use",
+    "import_provenance": "fictional_development_fixture",
+    "board_requirements": [
+      "虚构样例要求。"
+    ],
+    "retention_decision": "fictional_development_fixture",
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ]
+  },
+  {
+    "id": "tpl-profile-chinext-related_transaction-szse-17",
+    "name": "【样例】关联交易公告（虚构样例）",
+    "kind": "related_transaction",
+    "version": "1.0.0",
+    "file": "imports/chinext/related_transaction.docx",
+    "source_note": "虚构样例模板，仅用于开发与测试。",
+    "profile_id": "profile-chinext-related_transaction-szse-17",
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "fictional_fixture_not_for_business_use",
+    "import_provenance": "fictional_development_fixture",
+    "board_requirements": [
+      "虚构样例要求。"
+    ],
+    "retention_decision": "fictional_development_fixture",
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ]
+  },
+  {
+    "id": "tpl-profile-chinext-litigation_arbitration-szse-63",
+    "name": "【样例】重大诉讼仲裁公告（虚构样例）",
+    "kind": "litigation_arbitration",
+    "version": "1.0.0",
+    "file": "imports/chinext/litigation_arbitration.docx",
+    "source_note": "虚构样例模板，仅用于开发与测试。",
+    "profile_id": "profile-chinext-litigation_arbitration-szse-63",
+    "layout_profile_id": "chinext-announcement-fixture-v1",
+    "library_board": "chinext",
+    "scope_review_status": "fictional_fixture_not_for_business_use",
+    "import_provenance": "fictional_development_fixture",
+    "board_requirements": [
+      "虚构样例要求。"
+    ],
+    "retention_decision": "fictional_development_fixture",
+    "sections": [
+      {
+        "id": "fixture-sec-1",
+        "title": "一、事项基本情况",
+        "requirement": "说明事项基本情况。",
+        "fields": []
+      },
+      {
+        "id": "fixture-sec-2",
+        "title": "二、审议与决策程序",
+        "requirement": "说明审议与决策程序。",
+        "fields": []
+      }
+    ]
+  }
+]

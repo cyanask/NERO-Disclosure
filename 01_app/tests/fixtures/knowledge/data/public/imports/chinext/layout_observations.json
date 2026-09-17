@@ -1,0 +1,14 @@
+{
+  "schema_version": "nero.disclosure.layout-observations.v1",
+  "note": "虚构样例版式观察，仅用于开发与测试。",
+  "observations": [
+    {
+      "block": 1,
+      "title": "标题"
+    },
+    {
+      "block": 2,
+      "title": "正文"
+    }
+  ]
+}

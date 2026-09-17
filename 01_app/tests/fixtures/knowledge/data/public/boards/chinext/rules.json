@@ -1,0 +1,147 @@
+[
+  {
+    "id": "fx-rule-board",
+    "version": "0.1.0",
+    "event_kind": "board_resolution",
+    "layers": [
+      "chinext"
+    ],
+    "source_ids": [
+      "szse-chinext-2026-5.1.1"
+    ],
+    "required_facts": [
+      "meeting_date",
+      "resolution_subject",
+      "passed",
+      "requires_shareholder_approval",
+      "contains_disclosable_information"
+    ],
+    "logic": {
+      "type": "board"
+    },
+    "limitations": [
+      "虚构样例规则。"
+    ],
+    "library_board": "chinext",
+    "review_status": "fictional_fixture"
+  },
+  {
+    "id": "fx-rule-notice",
+    "version": "0.1.0",
+    "event_kind": "shareholder_notice",
+    "layers": [
+      "chinext"
+    ],
+    "source_ids": [
+      "szse-chinext-2026-3.2.1"
+    ],
+    "required_facts": [
+      "meeting_type",
+      "meeting_date",
+      "notice_date"
+    ],
+    "logic": {
+      "type": "notice",
+      "advance_days": {
+        "annual": 20,
+        "extraordinary": 15
+      }
+    },
+    "limitations": [
+      "虚构样例规则。"
+    ],
+    "library_board": "chinext",
+    "review_status": "fictional_fixture"
+  },
+  {
+    "id": "fx-rule-change",
+    "version": "0.1.0",
+    "event_kind": "management_change",
+    "layers": [
+      "chinext"
+    ],
+    "source_ids": [
+      "szse-chinext-2026-6.3.1"
+    ],
+    "required_facts": [
+      "change_type",
+      "effective_date"
+    ],
+    "logic": {
+      "type": "always"
+    },
+    "limitations": [
+      "虚构样例规则。"
+    ],
+    "library_board": "chinext",
+    "review_status": "fictional_fixture"
+  },
+  {
+    "id": "fx-rule-related",
+    "version": "0.1.0",
+    "event_kind": "related_transaction",
+    "layers": [
+      "chinext"
+    ],
+    "source_ids": [
+      "szse-chinext-2026-8.7.2"
+    ],
+    "required_facts": [
+      "counterparty_type",
+      "is_related_party",
+      "is_guarantee",
+      "daily_expected",
+      "exemption_claimed"
+    ],
+    "logic": {
+      "type": "related",
+      "amount_field": "amount",
+      "denominator_field": "audited_net_assets",
+      "absolute_threshold": "1000000",
+      "ratio_threshold": "0.005",
+      "operator": "and",
+      "natural_person": {
+        "absolute_threshold": "300000",
+        "ratio_threshold": "0"
+      },
+      "legal_person": {
+        "absolute_threshold": "1000000",
+        "ratio_threshold": "0.005"
+      }
+    },
+    "limitations": [
+      "虚构样例规则。"
+    ],
+    "library_board": "chinext",
+    "review_status": "fictional_fixture"
+  },
+  {
+    "id": "fx-rule-litigation",
+    "version": "0.1.0",
+    "event_kind": "litigation_arbitration",
+    "layers": [
+      "chinext"
+    ],
+    "source_ids": [
+      "szse-chinext-2026-9.1.1"
+    ],
+    "required_facts": [
+      "case_role",
+      "case_stage",
+      "case_amount"
+    ],
+    "logic": {
+      "type": "litigation",
+      "amount_field": "case_amount",
+      "denominator_field": "audited_net_assets",
+      "absolute_threshold": "1000000",
+      "ratio_threshold": "0.1",
+      "absolute_comparator": "gt"
+    },
+    "limitations": [
+      "虚构样例规则。"
+    ],
+    "library_board": "chinext",
+    "review_status": "fictional_fixture"
+  }
+]

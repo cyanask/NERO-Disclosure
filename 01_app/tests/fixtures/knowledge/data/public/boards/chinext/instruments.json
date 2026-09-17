@@ -1,0 +1,31 @@
+[
+  {
+    "id": "szse-chinext-listing-2026-verified",
+    "title": "【样例】创业板信息披露虚构规则（非官方文本）",
+    "url": "https://www.szse.cn/fixture/instrument-1",
+    "effective_from": "2025-01-01",
+    "effective_to": null,
+    "as_of": "2026-01-01",
+    "version_review": "fictional_fixture",
+    "retrieval_method": "fictional_fixture_authoring",
+    "original_path": null,
+    "sha256": null,
+    "page_count": 1,
+    "article_count": 6,
+    "event_kinds": [
+      "board_resolution",
+      "shareholder_notice",
+      "management_change",
+      "related_transaction",
+      "litigation_arbitration"
+    ],
+    "limitations": [
+      "虚构样例条款，仅用于开发与测试。"
+    ],
+    "library_board": "chinext",
+    "layers": [
+      "chinext"
+    ],
+    "scope_review_status": "fictional_fixture_not_for_business_use"
+  }
+]
