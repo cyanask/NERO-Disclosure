@@ -27,7 +27,7 @@ def build(args):
             raise ValueError('软件载荷版本或架构不匹配')
         identities.append(verified['source_commit'])
     if len(set(identities))!=1:raise ValueError('两个架构的软件不属于同一提交')
-    output.mkdir(parents=True)
+    output.mkdir(parents=True,mode=0o700)
     media=output/'media';media.mkdir()
     installer=media/'安装 NERO 信披系统.app'
     resources=installer/'Contents/Resources';resources.mkdir(parents=True)
@@ -36,7 +36,12 @@ def build(args):
         destination=resources/'Applications'/arch/APP_NAME
         destination.parent.mkdir(parents=True)
         shutil.copytree(source,destination,symlinks=True)
-    shutil.copytree(args.snapshot,resources/'MigrationData')
+    data=resources/'MigrationData'
+    shutil.copytree(args.snapshot,data)
+    # Distribution files must be readable by a different Mac account/UID.
+    # The resulting DMG is private on the author's disk; restored homes are 0700.
+    for path in (data,*data.rglob('*')):
+        path.chmod(0o755 if path.is_dir() or path.stat().st_mode & 0o111 else 0o644)
     work=output/'build-work';work.mkdir()
     icon(installer,work)
     sdk=subprocess.check_output(['xcrun','--show-sdk-path'],text=True).strip()
@@ -61,7 +66,9 @@ def build(args):
     image=output/f'NERO-Disclosure-{VERSION}-macOS-full-unsigned.dmg'
     run(['hdiutil','create','-volname','NERO 信披系统 1.0 完整迁移版','-srcfolder',media,'-format','UDZO',image])
     run(['hdiutil','verify',image])
+    image.chmod(0o600)
     result={'version':VERSION,'source_commit':identities[0],'migration_id':value['migration_id'],
+            'assembler_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=APP,text=True).strip(),
             'built_at':datetime.now(timezone.utc).isoformat(),'dmg':str(image),
             'sha256':digest(image),'bytes':image.stat().st_size,'architectures':list(payloads),
             'data_files':len(value['files']),'developer_id_signed':False,'notarized':False}
