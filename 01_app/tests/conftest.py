@@ -29,7 +29,7 @@ KNOWLEDGE_IS_FIXTURE = not _external
 # 三类布局：知识与本机资料位于软件根同级；旧式单根目录三者都落在 ROOT 内。
 LOCAL = WORKSPACE / '03_local'
 # 测试禁止写入的正式资料范围：样例目录、正式知识原件与模板、本项目 Skill 与本机业务目录。
-PROTECTED = (FIXTURE_KNOWLEDGE, WORKSPACE / '02_knowledge', ROOT / 'skills',
+PROTECTED = (FIXTURE_KNOWLEDGE, KNOWLEDGE, WORKSPACE / '02_knowledge', ROOT / 'skills',
              LOCAL / 'var', LOCAL / 'work', LOCAL / 'output', LOCAL / 'design-output')
 
 

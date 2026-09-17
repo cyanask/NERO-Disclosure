@@ -7,10 +7,7 @@
   "scorecard": "scorecard.json",
   "logo_source": "logo-source.json",
   "tokens_sources": [
-    "/Users/nero/Documents/Codex/design-team/tokens/colors.json",
-    "/Users/nero/Documents/Codex/design-team/tokens/typography.json",
-    "/Users/nero/Documents/Codex/design-team/tokens/spacing.json",
-    "/Users/nero/Documents/Codex/design-team/tokens/motion.json"
+    "Owner-managed design tokens (not a build dependency); compiled values live in frontend/src"
   ],
   "token_output": "src/styles.css + src/main.tsx theme",
   "fused_reference_skills": {
@@ -19,5 +16,6 @@
   "component_system": "existing Ant Design",
   "generator_used": false,
   "image_generation_used": false,
-  "new_dependencies": []
+  "new_dependencies": [],
+  "review_scope": "Historical design intent; not evidence of current runtime or human acceptance"
 }

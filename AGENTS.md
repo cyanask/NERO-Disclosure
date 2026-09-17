@@ -13,7 +13,7 @@
 
 - 路径解析统一使用 `01_app/backend/paths.py` 的三类根合同，不硬编码本机绝对路径。
 - 默认测试：`cd 01_app && python -m pytest -q`；带 `knowledge_pack` 标记的集成测试需要经授权的知识包，默认跳过。
-- 前端：`cd 01_app/frontend && npm run typecheck && npm run build`；`frontend/dist/` 是构建产物，不提交。
+- 前端：`cd 01_app/frontend && npm test && npm run typecheck && npm run build`；`frontend/dist/` 是构建产物，不提交。
 - Pi 运行进程：`cd 01_app/runtime/pi && npm test`。
 - 改动保持最小范围并沿用既有风格；数据写入保留原子写入、指纹校验与审计记录。
 

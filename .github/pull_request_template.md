@@ -11,7 +11,7 @@
 <!-- 列出实际执行的检查，例如默认测试、前端类型检查与构建、Pi 运行进程测试；注明未执行的项目。 -->
 
 - [ ] `cd 01_app && python -m pytest -q`
-- [ ] `cd 01_app/frontend && npm run typecheck && npm run build`
+- [ ] `cd 01_app/frontend && npm test && npm run typecheck && npm run build`
 - [ ] `cd 01_app/runtime/pi && npm test`
 
 ## 资料边界确认

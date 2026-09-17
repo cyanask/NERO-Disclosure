@@ -2,6 +2,8 @@
 
 本仓库只包含 **信息披露 AI 系统的软件源码与规则**，用于协作开发、代码审阅和发布构建。业务知识库、历史公告库和本机业务数据不进入本仓库。
 
+审查智能体架构、全部功能和工程化成熟度，请从[审阅入口](01_app/docs/REVIEW_GUIDE.md)开始。该页提供功能与源码、测试的映射、运行边界、已验证结果和仍需评审的工程问题；[接口清单](01_app/docs/review/API_INVENTORY.md)覆盖声明的 HTTP 接口。公开可见不等于获得开源许可证授权，项目目前未声明通用开源许可；第三方组件遵循各自许可证。
+
 ## 仓库边界
 
 软件按三类目录合同运行：`01_app/` 软件与规则、`02_knowledge/` 可加载知识库、`03_local/` 本机工作与历史。
@@ -17,39 +19,45 @@
 ## 环境准备
 
 - Python 3.13（`01_app/requirements.lock.txt` 为准）。
-- Node.js 22 以上（Pi 运行进程与前端构建）。
+- Node.js 22.19 以上（Pi 运行进程与前端构建）。
+
+下列命令从 macOS 上的仓库根目录执行；Windows 原生运行与发行版验收不包含在本次上传验证中。
 
 ```sh
 python3.13 -m venv .venv
 .venv/bin/pip install -r 01_app/requirements.lock.txt
 
-cd 01_app/runtime/pi && npm ci
-cd ../../frontend && npm ci && npm run build
+(cd 01_app/runtime/pi && npm ci)
+(cd 01_app/frontend && npm ci && npm run build)
 ```
 
-前端构建产物 `01_app/frontend/dist/` 不进入版本库，需要本地构建；发行版由 `01_app/scripts/build_macos_release.py` 重新生成。
+前端构建产物 `01_app/frontend/dist/` 不进入版本库，需要先执行 `npm run build`。发行脚本只复制已有的 `dist/`，不会替代前端构建。
 
 ## 运行默认测试
 
 ```sh
-cd 01_app && ../.venv/bin/python -m pytest -q
+(cd 01_app && ../.venv/bin/python -m pytest -q)
 ```
 
 默认测试使用虚构样例，不需要知识包，约 600 项。带 `knowledge_pack` 标记的集成测试需要经授权的知识包，按以下方式运行：
 
 ```sh
-cd 01_app && NERO_DISCLOSURE_KNOWLEDGE_ROOT=/path/to/02_knowledge ../.venv/bin/python -m pytest -q -m knowledge_pack
+(cd 01_app && NERO_DISCLOSURE_KNOWLEDGE_ROOT=/path/to/02_knowledge ../.venv/bin/python -m pytest -q -m knowledge_pack)
 ```
 
-默认测试通过只说明确定性检查通过，不代表知识包内容、真实模型效果或业务结论已经验收。
+默认测试通过只说明确定性检查通过，不代表知识包内容、真实模型效果或业务结论已经验收。知识包测试的数量断言针对 1.0 的历史快照；正式库发生增删后应由维护者复核期望值，不能据此把所有差异当作软件缺陷。
 
 ## 启动开发服务器
 
 ```sh
-cd 01_app && ../.venv/bin/python scripts/dev_server.py
+(cd 01_app && ../.venv/bin/python scripts/dev_server.py)
 ```
 
-开发入口使用虚构样例作为知识根、`03_local/dev/var` 作为隔离的本机数据目录，并启动 `http://127.0.0.1:8765`。它不会读取作者的正式知识库或历史业务数据；缺少前端构建产物时会给出提示。
+开发入口首次建立虚构知识目录，并预置 `000000 / 虚构审查公司（仅开发）`，无需模型账号即可进入各功能页。再次启动保留已有样例修改；遇到没有有效样例标记的目录会拒绝启动。测试 PDF 是字节占位样本，不适合作为 PDF 阅读器或 OCR 的演示原件。
+
+服务地址为 `http://127.0.0.1:8765`，数据库与模型配置写入 `03_local/dev/var`；文稿、附件、研究临时资料仍按三类根合同写入 `03_local/work/` 等目录。请在独立克隆中运行开发入口，不能用 `--data-dir` 将整个运行环境隔离到另一个目录。需要新的样例环境时使用新的克隆，不覆盖既有资料。
+
+本入口没有模拟聊天模型。真实咨询、拟稿、公司联网核实和 Pi 复判须在模型设置中配置自己的账号，并显式发起；离线验证可运行带模拟供应商的测试。正式运行仍用 `scripts/run.py` 加载经授权知识包。
 
 ## 目录约定与关键文件
 
@@ -64,7 +72,7 @@ cd 01_app && ../.venv/bin/python scripts/dev_server.py
 ## 协作方式
 
 1. 从 `main` 创建功能分支，例如 `codex/<topic>` 或 `feat/<topic>`。
-2. 提交前运行默认测试、前端类型检查与构建、Pi 运行进程测试。
+2. 提交前运行默认测试、前端 `npm test`、类型检查与构建、Pi 运行进程测试。
 3. 发起拉取请求，说明改动目的、验证方式和未完成项；由仓库维护者审阅合并。
 
 提交内容不得包含知识库资料、公司公告、客户或交易信息、模型密钥、证书以及任何本机业务数据。详见[贡献指南](CONTRIBUTING.md)。

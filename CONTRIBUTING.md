@@ -12,9 +12,9 @@
 ## 提交前检查
 
 ```sh
-cd 01_app && ../.venv/bin/python -m pytest -q          # 默认测试，使用虚构样例
-cd 01_app/frontend && npm run typecheck && npm run build
-cd 01_app/runtime/pi && npm test                        # Pi 运行进程测试
+(cd 01_app && ../.venv/bin/python -m pytest -q)          # 默认测试，使用虚构样例
+(cd 01_app/frontend && npm test && npm run typecheck && npm run build)
+(cd 01_app/runtime/pi && npm test)                       # Pi 运行进程测试
 ```
 
 `knowledge_pack` 标记的集成测试需要经授权的知识包，默认跳过；维护者按需在持有知识包的机器上运行。默认测试通过不等于知识库内容、真实模型效果或业务结论已验收。

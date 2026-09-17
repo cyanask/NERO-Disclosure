@@ -2,7 +2,9 @@
 
 本文件固定 NERO 信息披露 AI 系统的三个交付边界及各自的可重建内容。`.gitignore` 与 `scripts/generate_manifest.py` 以本文件为准。
 
-本源码仓库只包含 `01_app` 软件包，并附带 `tests/fixtures/knowledge` 虚构样例供开发与默认测试使用；`02_knowledge` 与 `03_local` 始终由使用者在本机提供，详见根目录 [README](../..//README.md) 与 [贡献指南](../..//CONTRIBUTING.md)。
+本源码仓库只包含 `01_app` 软件包，并附带 `tests/fixtures/knowledge` 虚构样例供开发与默认测试使用；`02_knowledge` 与 `03_local` 始终由使用者在本机提供，详见根目录 [README](../../README.md) 与 [贡献指南](../../CONTRIBUTING.md)。
+
+下文的登记范围描述发行软件与资料布局，不是 Git 上传清单。公开仓库不跟踪 `frontend/dist/`、运行依赖、生成清单或任何正式知识模板。实际上传范围与例外以[公开源码验收](review/PUBLIC_ACCEPTANCE.md)、[来源对照](review/EXPORT_BASELINE.json)及根目录 `.gitignore` 为准。
 
 ## 01_app 软件包
 
@@ -48,5 +50,3 @@
 ## 发布清单
 
 `scripts/generate_manifest.py` 默认登记 `01_app/` 内的软件源码与运行器（`--scope source`）。`--scope full` 以工作区为路径基准扩展扫描，仍按排除清单跳过 `var/`、`node_modules/`、`.venv/` 等内容，不能用作业务备份。清单默认写到 `01_app/BUILD_MANIFEST.json`，`scripts/verify_release.py` 按清单核对副本；根目录入口及历史迁移的逐文件对照另存迁移审计清单。
-
-<!-- prose-quality-binding: {"core_id": "nero-chinese-prose-quality", "core_version": "0.4.0", "profile": "general", "rules_sha256": "4758913f7f778ff53e520c480a470ad4aab40112855ca97a5b905a2db6f129b3", "body_sha256": "07d548a76f454d94d5187a535f907f30b90677fbf39e900795c0dbfa411ec6fd", "body_scope": "text before this comment, normalized to one trailing newline", "automatic_check": {"deterministic_pass": true, "finding_count": 0}, "model_review": "Checked current App identity, installer instructions and explicit launcher-retirement decision; no App build or effect acceptance performed", "human_acceptance": "not_claimed"} -->
