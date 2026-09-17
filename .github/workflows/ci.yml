@@ -1,0 +1,68 @@
+name: 检查
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: 后端默认测试
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: 01_app/requirements.lock.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: 01_app/runtime/pi/package-lock.json
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r 01_app/requirements.lock.txt
+      - name: 安装 Pi 运行依赖
+        working-directory: 01_app/runtime/pi
+        run: npm ci
+      - name: 默认测试（虚构样例，不需要知识包）
+        working-directory: 01_app
+        run: python -m pytest -q
+
+  frontend:
+    name: 前端类型检查与构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: 01_app/frontend/package-lock.json
+      - working-directory: 01_app/frontend
+        run: npm ci
+      - working-directory: 01_app/frontend
+        run: npm run typecheck
+      - working-directory: 01_app/frontend
+        run: npm run build
+
+  pi-runtime:
+    name: Pi 运行进程测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: 01_app/runtime/pi/package-lock.json
+      - working-directory: 01_app/runtime/pi
+        run: npm ci
+      - working-directory: 01_app/runtime/pi
+        run: npm test
