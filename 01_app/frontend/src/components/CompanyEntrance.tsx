@@ -41,7 +41,7 @@ export default function CompanyEntrance({workspace,onEnter,onSettings,onReturn}:
  const select=async()=>{const company=workspace.companies.find(c=>`${c.board}:${c.stock_code}`===existing);if(!company)return;setBusy(true);setError('');try{onEnter(await api<Company>('/company-workspace/select','POST',{board:company.board,stock_code:company.stock_code}));}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
  const result=run?.company_result;
  return <div className="company-entrance">
-  <header className="company-entry-header"><div className="product-name"><img className="personal-mark" src="/disclosure-window-a.png" alt="披露之窗"/><span className="brand-two-lines"><span>信息披露</span><span className="second">AI 辅助系统</span></span></div><Button type="text" onClick={onSettings}>模型设置</Button></header>
+  <header className="company-entry-header"><div className="product-name"><img className="personal-mark" src="/disclosure-window-sidebar.svg" alt="披露之窗"/><span className="brand-two-lines"><span>信息披露</span><span className="second">AI 辅助系统</span></span></div><Button type="text" onClick={onSettings}>模型设置</Button></header>
   <main className="company-entry-main">
    <div className="company-entry-copy"><p className="eyebrow">COMPANY WORKSPACE</p><h1>从本公司开始</h1><p>填写公司全称和证券代码，系统联网核实所属板块后，登记并进入工作台。</p><p>已登记的公司，下次直接进入。</p><div className="company-entry-libraries"><span>法规与案例 · 适用板块</span><span>模板 · 通用与本公司专用</span><span>历史公告 · 本公司</span></div></div>
    <section className="company-entry-form" aria-label="公司登记">
