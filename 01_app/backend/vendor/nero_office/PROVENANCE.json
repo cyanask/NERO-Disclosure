@@ -1,0 +1,19 @@
+{
+  "source_project": "NERO Banker",
+  "source_commit": "1dfeaca87834994bbe6fb13d37ab0f43cc25dca3",
+  "source_files": {
+    "core/office_document_codec.py": "cc605e6bf62f811db3e592adabf936cebef5571dfcb673b50d2f11647c690aba",
+    "core/document_read_service.py": "26d27be472756d190967679cc1507de220a9656d1bda7c0850055e2a042babef"
+  },
+  "scope": "DOCX/XLSX read-only functions; no writer, database or business registration",
+  "adaptations": [
+    "local relative imports",
+    "exclude PDF and all write functions",
+    "workbook aggregate cell budget",
+    "report unparsed DOCX header/footer/footnote/endnote text",
+    "DOCX aggregate table-cell budget"
+  ],
+  "dependency": {
+    "openpyxl": "3.1.5 (MIT); reuse Banker version; helpers only, XML parsed by bounded lxml codec"
+  }
+}

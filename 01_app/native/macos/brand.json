@@ -1,0 +1,14 @@
+{
+  "schema": "nero.disclosure.product-identity.v1",
+  "selected_direction": "A",
+  "name": "披露之窗",
+  "approval": "explicit_user_selection_20260917",
+  "source": "03_local/output/logo-concepts-20260917-side/concept-a-3d.png",
+  "source_sha256": "ddef46047cb8b2aed8d1cbfc22f295fc7d8e070da5e468013294168a495fb2f2",
+  "canonical_asset_relative_to_app": "frontend/public/disclosure-window-a.png",
+  "permitted_derivatives": ["size_resampling", "png_to_icns"],
+  "preserve": ["geometry", "teal_ivory_gold_palette", "fold", "two_apertures", "texture", "background"],
+  "rejected_for_product_identity": ["personal_N_monogram", "concept_B"],
+  "scope": ["web_logo", "web_favicon", "mac_application_icon", "mac_installer_application_icon", "local_desktop_shortcut"],
+  "historical_installers_unchanged": true
+}

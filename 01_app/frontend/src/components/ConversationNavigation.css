@@ -1,0 +1,15 @@
+.workspace-header:has(.conversation-navigation){gap:12px;padding-inline:24px}
+.workspace-quick-navigation{margin-left:auto;flex:0 1 auto;min-width:0}
+.conversation-navigation{display:flex;align-items:center;gap:4px}
+.conversation-navigation button{display:flex;align-items:center;gap:5px;border:1px solid transparent;border-radius:4px;min-height:var(--control-height-compact);padding:4px 7px;background:transparent;color:#425d68;font:inherit;font-size:11px;line-height:18px;white-space:nowrap;cursor:pointer}
+.conversation-navigation button:hover{background:#edf3f5;border-color:#d9e5e9;color:#254c5c}
+.conversation-navigation button:disabled{opacity:.45;cursor:default;background:transparent;border-color:transparent}
+.conversation-navigation button:focus-visible{outline:2px solid #426e7d;outline-offset:2px}
+.conversation-navigation .header-progress-trigger{min-width:0;max-width:260px;background:#f0f3f1;border-color:#e1e7e3;padding-inline:8px}
+.header-progress-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.header-progress-dot{width:6px;height:6px;border-radius:50%;background:#869ba2;flex:none}
+.header-progress-trigger.active .header-progress-dot{background:#276c7b}.header-progress-trigger.human .header-progress-dot{background:#94662c}.header-progress-trigger.blocked .header-progress-dot{background:#ac5148}
+.header-progress-trigger[data-motion=on] .header-progress-dot{animation:header-progress-pulse 1.8s ease-in-out infinite}
+.header-work-progress-popover{max-width:calc(100vw - 48px)}.header-work-progress-popover .ant-popover-inner{padding:0}.header-progress-content{width:640px;max-width:calc(100vw - 48px);max-height:calc(100vh - 116px);overflow:auto;border-radius:8px;outline:none}.header-progress-content .work-progress{margin:0}.header-progress-content .work-progress-summary>div{min-width:0}
+@keyframes header-progress-pulse{0%,100%{opacity:1}50%{opacity:.35}}@media(prefers-reduced-motion:reduce){.header-progress-dot{animation:none!important}}
+@media(min-width:801px) and (max-width:1150px){.workspace-header:has(.conversation-navigation){gap:10px;padding-inline:16px}.workspace-header:has(.conversation-navigation) .connection-status{display:none}.workspace-header:has(.conversation-navigation) .workspace-breadcrumb{gap:8px}.workspace-header:has(.conversation-navigation) .header-switch{padding-left:10px;gap:5px}.conversation-navigation button{padding-inline:5px}}

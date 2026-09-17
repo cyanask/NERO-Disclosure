@@ -1,0 +1,19 @@
+{
+  "asset": "../public/nero-n.png",
+  "source": "/Users/nero/NERO Principal/00_workbench/ui/public/assets/nero-n.png",
+  "sha256": "d225c31f856df0e5ffdf89de1cb19f5070f9a2e8d170e954ff5f5d92af685155",
+  "transformation": "byte-identical copy; CSS contain only",
+  "header_display_css_px": [
+    14,
+    14
+  ],
+  "original_image_px": [
+    216,
+    200
+  ],
+  "used_in": [
+    "header",
+    "favicon"
+  ],
+  "image_generation_used": false
+}

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {visibleAnswers} from '../frontend/src/roundAnswers';
+import type {PiRun,Receipt} from '../frontend/src/chat';
+const run={id:'r',stage:'document',status:'incomplete'} as PiRun;
+const row=(seq:number,kind:string,body:object)=>({seq,kind,body,run_id:'r',at:0} as Receipt);
+const rows=[row(1,'assistant',{text:'A or B first',phase:'answer',stopReason:'stop'}),row(2,'completion_repair_started',{}),row(3,'assistant',{text:'A or B again',phase:'answer',stopReason:'stop'})];
+assert.deepEqual(visibleAnswers(run,rows).map(r=>r.seq),[3]);
+assert.equal(rows.length,3);
+assert.equal(visibleAnswers({...run,id:'other'},rows).length,0);
+rows.push(row(4,'assistant',{text:'文件已生成',phase:'final',stopReason:'stop'}));
+assert.deepEqual(visibleAnswers(run,rows).map(r=>r.seq),[4]);
+console.log('PASS: retry display keeps one answer and preserves journal');

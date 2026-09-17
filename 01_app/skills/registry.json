@@ -1,0 +1,75 @@
+{
+  "schema_version": "nero.disclosure.stage_skills.v1",
+  "scope": "project_only",
+  "stages": {
+    "assessment": {
+      "id": "disclosure-duty-assessment",
+      "version": "1.5.0",
+      "path": "skills/disclosure-duty-assessment/SKILL.md",
+      "sha256": "48458276737172616c6dc19e124ba3859ccaadede7d86c420331809d4c3ab374",
+      "references": [
+        {
+          "path": "skills/disclosure-contract.md",
+          "sha256": "3eef7d83ef0848eb15e2170957bd1379b6f92040a67409680fefaaa40aca9f06"
+        }
+      ]
+    },
+    "plan": {
+      "id": "disclosure-content-planning",
+      "version": "1.4.0",
+      "path": "skills/disclosure-content-planning/SKILL.md",
+      "sha256": "439d14c7c2236cd22d96befbbc2e19680ee72dd6e08edc14bf61543d80c656ec",
+      "references": [
+        {
+          "path": "skills/disclosure-contract.md",
+          "sha256": "3eef7d83ef0848eb15e2170957bd1379b6f92040a67409680fefaaa40aca9f06"
+        }
+      ]
+    },
+    "draft": {
+      "id": "neeq-disclosure-draft",
+      "version": "3.4.0",
+      "path": "skills/neeq-disclosure-draft/SKILL.md",
+      "sha256": "79b87874e60640bc3bd059c320dd811d97a82dc96f80f62df3b1623df819ab6b",
+      "references": [
+        {
+          "path": "skills/disclosure-contract.md",
+          "sha256": "3eef7d83ef0848eb15e2170957bd1379b6f92040a67409680fefaaa40aca9f06"
+        }
+      ]
+    },
+    "template": {
+      "id": "neeq-disclosure-draft",
+      "version": "3.4.0",
+      "path": "skills/neeq-disclosure-draft/SKILL.md",
+      "sha256": "79b87874e60640bc3bd059c320dd811d97a82dc96f80f62df3b1623df819ab6b",
+      "references": [
+        {
+          "path": "skills/disclosure-contract.md",
+          "sha256": "3eef7d83ef0848eb15e2170957bd1379b6f92040a67409680fefaaa40aca9f06"
+        }
+      ]
+    }
+  },
+  "methods": {
+    "consultation": {
+      "id": "disclosure-consultation",
+      "version": "1.0.1",
+      "path": "skills/disclosure-consultation/SKILL.md",
+      "sha256": "b6eda40b08b19a85712e661764fe98cacd1243a65ac8df52ca6feab2b5a10ce5",
+      "references": []
+    },
+    "announcement": {
+      "id": "disclosure-announcement-drafting",
+      "version": "1.1.0",
+      "path": "skills/disclosure-announcement-drafting/SKILL.md",
+      "sha256": "bdd4e37e914c349f290c1924a25329c25013d083b43a78a5d75eeead17f26ca1",
+      "references": [
+        {
+          "path": "skills/disclosure-consultation/SKILL.md",
+          "sha256": "b6eda40b08b19a85712e661764fe98cacd1243a65ac8df52ca6feab2b5a10ce5"
+        }
+      ]
+    }
+  }
+}

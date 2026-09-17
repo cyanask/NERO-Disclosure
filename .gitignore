@@ -1,0 +1,27 @@
+# 三类目录合同：本仓库只版本化 01_app 软件与规则；知识与本机资料不进版本库。
+02_knowledge/
+03_local/
+
+# 已安装的运行依赖与构建产物（按锁文件重建）
+01_app/runtime/portable/
+01_app/runtime/macos/
+01_app/runtime/pi/node_modules/
+01_app/runtime/windows-x64/packages/
+01_app/runtime/windows-x64/downloads/
+01_app/runtime/windows-x64/envs/
+01_app/frontend/node_modules/
+01_app/frontend/dist/
+node_modules/
+
+# 生成的发布清单，由 01_app/scripts/generate_manifest.py 重建
+01_app/BUILD_MANIFEST.json
+
+# 本机环境与缓存
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.tsbuildinfo
+*.log
+.DS_Store
+.desktop.lock

@@ -1,0 +1,49 @@
+{
+  "revision": "company-workspace-20260916",
+  "primary_job": "公司全称和证券代码经联网核实后登记，进入本公司工作台；已设置直接进入",
+  "user_role": "上市或挂牌公司的信披工作人员",
+  "assistance_mode": "form-driven entry; company workbench",
+  "capability_boundary": "Pi 仅查询公开身份；服务端保存来源并决定可用板块。当前仅创业板可进入工作台。",
+  "high_impact_actions": [
+    "更换公司时保留原公司事项与资料",
+    "不以核实结果覆盖已有公司定稿或业务事实"
+  ],
+  "evidence_priority": [
+    "输入的公司全称及证券代码",
+    "本轮官方原文及页码",
+    "板块识别与工作台是否接入分别显示"
+  ],
+  "required_states": [
+    "idle",
+    "running",
+    "completed",
+    "failed",
+    "cancelled",
+    "interrupted",
+    "needs_review",
+    "unsupported",
+    "registered"
+  ],
+  "recovery_actions": [
+    "保留输入并重试",
+    "停止核实",
+    "重新读取登记结果",
+    "配置默认模型"
+  ],
+  "design_dials": {
+    "DESIGN_VARIANCE": "沿用现有视觉",
+    "MOTION_INTENSITY": "仅控件反馈",
+    "VISUAL_DENSITY": "两字段表单与简短结果"
+  },
+  "acceptance_viewports": [
+    {
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "width": 1280,
+      "height": 800
+    }
+  ],
+  "mobile_in_scope": false
+}

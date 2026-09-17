@@ -1,0 +1,21 @@
+{
+  "schema_version": "nero.disclosure.windows_runtime.v1",
+  "architecture": "x64",
+  "python_version": "3.13.12",
+  "python_url": "https://www.python.org/ftp/python/3.13.12/python-3.13.12-embed-amd64.zip",
+  "python_sha256": "76f238f606250c87c6beac75dccd35ee99070a13490555936abb6cb64ecce3d0",
+  "python_pth": "python313._pth",
+  "python_stdlib_zip": "python313.zip",
+  "uv_version": "0.11.7",
+  "uv_url": "https://github.com/astral-sh/uv/releases/download/0.11.7/uv-x86_64-pc-windows-msvc.zip",
+  "uv_sha256": "fe0c7815acf4fc45f8a5eff58ed3cf7ae2e15c3cf1dceadbd10c816ec1690cc1",
+  "python_license": "PSF-2.0",
+  "uv_license": "MIT OR Apache-2.0",
+  "source_references": [
+    "https://www.python.org/downloads/release/python-31312/",
+    "https://docs.python.org/3/using/windows.html#the-embeddable-package",
+    "https://github.com/astral-sh/uv/releases/tag/0.11.7"
+  ],
+  "windows_execution_verified": false,
+  "python_exe_sha256": "a2a4eff8d0b0c845284c607d50a3b5b966ac5a3121736a2e38e165bd6644d9fe"
+}

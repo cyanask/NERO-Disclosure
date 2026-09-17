@@ -1,0 +1,18 @@
+/* Approved black-gold theme: design-output/black-gold-stars-20260911. */
+.brand-two-lines{display:flex;flex-direction:column;gap:3px;font-size:18px;font-weight:600;letter-spacing:.6px;line-height:24px}
+.brand-two-lines span{display:block}
+.brand-two-lines .second{font-size:12px;font-weight:400;letter-spacing:.4px;line-height:18px;color:#c5c0b2}
+/* Transparent sidebar variant; the original full logo remains available. */
+.personal-mark{display:block;width:40px;height:40px;flex:none;object-fit:contain}
+.sidebar-brand .product-name{gap:10px;align-items:center}
+
+.workspace-sidebar{background:linear-gradient(165deg,#272318,#111313 42%);color:#f1eee6;border-right-color:#65543a}
+.sidebar-subtitle,.sidebar-nav-label,.sidebar-foot{color:#b4ae9c}
+.sidebar-subtitle{white-space:nowrap;font-size:9px;font-weight:400;line-height:15px;letter-spacing:.9px;margin-top:12px;padding-left:5.5px}
+.nav-item{color:#c5c0b2}
+.nav-item:hover{background:#25231b;color:#f5eddb}
+.nav-item[aria-current="page"]{background:#343022;color:#f7edda}
+.nav-item[aria-current="page"]>.anticon{color:#f0cb82}
+.nav-item small{color:#d0c5ad}
+.nav-item:disabled{color:#888575}
+.sidebar-rule{background:#d6b472}

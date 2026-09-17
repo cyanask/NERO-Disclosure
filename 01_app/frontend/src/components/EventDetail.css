@@ -1,0 +1,44 @@
+.governance-event-detail .event-detail-back{margin:0 0 8px;padding-left:0!important}
+.compact-page-intro .governance-event-detail .run-detail{padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.governance-event-detail .facts-details .ant-descriptions-item-label,.governance-event-detail .facts-details .ant-descriptions-item-content{padding:6px 10px;font-size:12px;line-height:20px}
+.governance-event-detail .binding-note{margin:8px 0 6px;line-height:20px}
+.governance-event-detail .binding-save{margin-top:6px}
+/* Information priority, not smaller text: current situation → result → records. */
+.governance-event-detail .event-detail-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 12px;margin:4px 0 16px}
+.governance-event-detail .event-detail-heading h1{font-size:17px;line-height:26px;margin:0;font-weight:600;letter-spacing:0;overflow-wrap:anywhere}
+.governance-event-detail .event-detail-heading>span{font-size:11px;line-height:18px;color:#728087}
+.governance-event-detail .event-overall-stage{margin-left:auto}
+.governance-event-detail .event-current-state{padding:16px 18px;background:#f5f8f7;border-left:3px solid #42665e;border-radius:0 5px 5px 0;margin-bottom:18px}
+.governance-event-detail .event-current-state.needs-attention{background:#faf8f2;border-left-color:#b58b3d}
+.governance-event-detail .event-state-copy h2{font-size:16px;line-height:24px;margin:0 0 5px}
+.governance-event-detail .event-state-copy p{font-size:13px;line-height:22px;margin:0;max-width:850px;color:#526269}
+.governance-event-detail .event-main-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0 8px}
+.governance-event-detail .event-main-actions>section{display:contents}
+.governance-event-detail .event-main-actions .ant-btn-primary{font-weight:500}
+.governance-event-detail .event-check-details{font-size:12px;color:#627077;margin-top:4px}
+.governance-event-detail .event-check-details>summary{display:list-item;min-height:24px;line-height:24px;color:#65747a}
+.governance-event-detail .event-confirmation-boundary{font-size:11px;line-height:18px;color:#77817e;margin:5px 0 0}
+.governance-event-detail .event-existing-result{margin:0 0 16px;padding:0 2px}
+.governance-event-detail .event-existing-result>div{display:flex;align-items:baseline;gap:10px}
+.governance-event-detail .event-existing-result h2{font-size:14px;line-height:22px;margin:0}
+.governance-event-detail .event-existing-result span{font-size:11px;color:#7d7664}
+.governance-event-detail .event-result-summary{font-size:13px;line-height:22px;color:#465b62;margin:6px 0;max-width:900px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.governance-event-detail .event-detail-view>details{border-top:1px solid #e5e9e5;border-bottom:0;padding:9px 0;margin:0!important;font-size:12px}
+.governance-event-detail .event-detail-view>details>summary{min-height:26px;line-height:26px;font-size:13px;color:#435961}
+.governance-event-detail .event-detail-view>details[open]>summary{margin-bottom:10px}
+.governance-event-detail .event-history>details{margin:0 0 8px;padding:5px 8px;background:#fafbf9}
+.governance-event-detail .event-history>details>summary{min-height:24px;line-height:24px}
+.governance-event-detail .event-history p{line-height:20px;margin:6px 0;font-size:12px}
+.governance-event-detail .event-binding-editor{margin:10px 0}
+.governance-event-detail .event-management .run-toolbar{justify-content:flex-start;margin:8px 0}
+.event-review-modal,.event-result-modal{top:32px}
+.event-review-modal .ant-modal-content,.event-result-modal .ant-modal-content{padding:20px 24px}
+.event-review-modal .ant-modal-body,.event-result-modal .ant-modal-body{max-height:calc(100dvh - 175px);overflow:auto}
+.event-review-modal .ant-modal-footer,.event-result-modal .ant-modal-footer{margin-top:14px}
+.event-review-modal .ant-modal-body>p{font-size:12px;line-height:20px;margin-bottom:8px}
+.event-review-modal .ant-alert{padding:10px 12px;margin-bottom:10px}
+.event-review-modal .ant-alert-message{font-size:13px;line-height:20px}
+.event-review-modal .ant-alert-description{font-size:12px;line-height:20px}
+.event-review-modal .ant-alert-description ul{margin:4px 0;padding-left:18px}
+.event-review-modal .ant-alert-description li{line-height:20px}
+.event-review-modal .ant-modal-body>.ant-input{margin-top:8px}

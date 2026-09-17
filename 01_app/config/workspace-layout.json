@@ -1,0 +1,10 @@
+{
+  "schema": "nero.workspace.layout.v1",
+  "roots": {
+    "software": "01_app",
+    "knowledge": "02_knowledge",
+    "local": "03_local"
+  },
+  "legacy_paths": [],
+  "note": "本仓库只登记三类目录合同；作者工作区的历史文件映射不随源码分发，历史引用按当前工作区同名相对路径解析。"
+}

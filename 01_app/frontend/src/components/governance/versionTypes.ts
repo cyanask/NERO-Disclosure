@@ -1,0 +1,12 @@
+export type Asset={reference:string;path:string;present:boolean;bytes:number;sha256:string;recorded_sha256:string;matches:boolean|null;mtime:string};
+export type Version={scanned_at:string;boundary:string;elapsed_ms:number;
+ build:{file:string;present:boolean;version:string;product:string;schema_version:string;description:string;files_count?:number;producer:{name?:string;label?:string;fingerprint?:string};manifest_sha256:string;recorded_at:string;error?:string|null};
+ source:{available:boolean;commit:string;commit_date:string;subject:string;local_changes?:number;error?:string|null};
+ web:{root:string;index:string;present:boolean;bundle:string;assets:Asset[];stale:boolean|null;notice:string;built_at?:string;newest_source?:{path:string;mtime:string}};
+ engine:{name:string;version:string;installed:boolean;node:string;configuration_path:string;settings_revision:number;models:{total:number;enabled:number};error?:string|null};
+ data:{databases:{path:string;bytes:number;present:boolean}[];indexes:{kind:string;board:string;path:string;status:string;schema:string;expected:string;detail:string;changed_assets:number}[]};
+ runtime?:{pid:number;started_at:string;status:string};
+ check:{mode:string;status?:string;checked:number;recorded:number;missing_count:number;changed_count:number;missing:string[];changed:{path:string;recorded:number;current:number}[];notice:string};
+ rollback:{kind:string;path:string;bytes:number;files:number;at:string;readiness?:string;notice?:string}[];
+ changes:{at:string;differences:string[]}[]};
+export type Verify={request_id:string;state:string;started_at:string;finished_at?:string;total:number;processed?:number;checked:number;bytes:number;missing_count:number;mismatch_count:number;missing:string[];mismatched:{path:string;recorded:string;current:string}[];elapsed_ms:number;error?:string;manifest_sha256?:string};

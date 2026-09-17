@@ -1,0 +1,8 @@
+# Runtime requirements; use the tested requirements.lock.txt for the MVP.
+fastapi>=0.141,<0.142
+uvicorn>=0.52,<0.53
+sqlalchemy>=2.0,<2.1
+docxtpl==0.20.2
+httpx>=0.28,<0.29
+pypdf==6.17.0
+openpyxl==3.1.5

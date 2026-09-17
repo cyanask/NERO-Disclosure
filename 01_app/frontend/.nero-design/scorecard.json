@@ -1,0 +1,37 @@
+{
+  "revision": "company-workspace-20260916",
+  "design_contract_passed": true,
+  "typecheck_passed": true,
+  "rendered_qa_passed": true,
+  "live_behavior_observed": true,
+  "live_behavior_surface": "isolated HTTP fixture with simulated provider",
+  "live_model_verified": false,
+  "installed_on_8765": true,
+  "human_accepted": false,
+  "observed_viewports": [
+    {
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "width": 1440,
+      "height": 1000
+    }
+  ],
+  "browser_errors": [],
+  "browser_checks": {
+    "two_fields": "pass",
+    "identity_mismatch": "pass",
+    "cancel_lookup": "pass",
+    "unsupported_board": "pass",
+    "automatic_registration": "pass",
+    "reload_registered": "pass",
+    "settings_reentry": "pass",
+    "two_company_sessions": "pass",
+    "restore_previous_company_session": "pass",
+    "case_categories": "pass"
+  },
+  "source_evidence": "../../docs/COMPANY_WORKSPACE_20260916.md",
+  "installed_page_observed": true,
+  "installed_evidence": "docs/company-workspace-20260916/activation-verification.json"
+}

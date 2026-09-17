@@ -1,0 +1,66 @@
+{
+  "models": [
+    {
+      "key": "gpt-5_6-luna-max",
+      "label": "GPT-5.6 Luna",
+      "provider": "openai-codex",
+      "api": "openai-codex-responses",
+      "id": "gpt-5.6-luna",
+      "baseUrl": "https://chatgpt.com/backend-api",
+      "auth_type": "oauth",
+      "contextWindow": 272000,
+      "maxTokens": 8192,
+      "enabled": false,
+      "visible": true,
+      "thinking_levels": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "reasoning_effort": "max",
+      "source": "local_codex_catalog_20260911_not_connection_verification"
+    },
+    {
+      "key": "openai-primary",
+      "label": "OpenAI · 自选模型",
+      "provider": "openai",
+      "api": "openai-responses",
+      "id": "填写已获准使用的模型 ID",
+      "baseUrl": "https://api.openai.com/v1",
+      "api_key_env": "DISCLOSURE_OPENAI_API_KEY",
+      "contextWindow": 128000,
+      "maxTokens": 8192,
+      "enabled": false,
+      "auth_type": "environment",
+      "visible": true,
+      "thinking_levels": [
+        "off"
+      ],
+      "reasoning_effort": "off",
+      "source": "example"
+    },
+    {
+      "key": "compatible-secondary",
+      "label": "兼容接口 · 自选模型",
+      "provider": "disclosure-compatible",
+      "api": "openai-completions",
+      "id": "填写已获准使用的模型 ID",
+      "baseUrl": "https://填写服务地址/v1",
+      "api_key_env": "DISCLOSURE_COMPATIBLE_API_KEY",
+      "contextWindow": 128000,
+      "maxTokens": 8192,
+      "enabled": false,
+      "auth_type": "environment",
+      "visible": true,
+      "thinking_levels": [
+        "off"
+      ],
+      "reasoning_effort": "off",
+      "source": "example"
+    }
+  ],
+  "revision": 0,
+  "routes": {}
+}

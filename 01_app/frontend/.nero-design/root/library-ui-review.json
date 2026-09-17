@@ -1,0 +1,18 @@
+{
+  "scope": "资料分库、分页、文种与依据详情",
+  "profile": "ai-app-ui",
+  "reviewed_at": "2026-09-09T00:07:07+08:00",
+  "inherited_tokens": true,
+  "design_variance": "low",
+  "motion_intensity": "low",
+  "visual_density": "professional_workbench",
+  "frontend_entry_skill": "nero-design-team",
+  "rendered_visual_review": true,
+  "dom_horizontal_overflow": false,
+  "human_acceptance": false,
+  "fused_reference_skills": [
+    "impeccable",
+    "taste-skill"
+  ],
+  "build_index_sha256": "ffc438d675b3f397c4803c7904713ffe6228ac295cbf8d9b8a0cd89a9b6a735a"
+}

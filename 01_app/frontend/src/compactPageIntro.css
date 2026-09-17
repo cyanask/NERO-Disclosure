@@ -1,0 +1,59 @@
+/* Compact introductions for schedule, knowledge, deliveries, activity, governance and models. */
+.workspace-main.compact-page-intro{padding:12px 24px 40px}
+.compact-page-intro .resource-page{padding:16px 18px;border-radius:5px;box-shadow:none}
+.compact-page-intro .page-heading{gap:16px;margin-bottom:var(--page-section-gap);padding-bottom:0}
+.compact-page-intro .page-heading>div{display:flex;flex:1;align-items:center;gap:12px;min-width:0}
+.compact-page-intro .page-heading h1{order:0;flex:none;margin:0;font-size:var(--page-title-size);line-height:26px;letter-spacing:0}
+.compact-page-intro .page-heading .page-kicker{order:1;flex:none;margin:0;font-size:8px;line-height:14px;letter-spacing:1.1px}
+.compact-page-intro .page-heading p{order:2;flex:1;min-width:0;margin:0;font-size:12px;line-height:18px;color:#6b787d}
+.compact-page-intro .page-heading>.ant-btn{flex:none;height:var(--control-height-compact);padding:3px 10px;font-size:12px;line-height:20px}
+.compact-page-intro .collection-tabs{gap:20px;margin-bottom:var(--page-section-gap)}
+.compact-page-intro .collection-tab{min-height:var(--control-height-compact);padding:3px 2px 7px;font-size:12px;line-height:18px}
+.compact-page-intro .governance-page .ant-tabs-nav{margin-bottom:var(--page-section-gap)}
+.compact-page-intro .governance-page .ant-tabs-tab{padding:6px 0;font-size:12px;line-height:20px}
+.compact-page-intro .governance-page .ant-tabs-tab+.ant-tabs-tab{margin-left:24px}
+.compact-page-intro .banker-model-settings .page-heading{padding-bottom:10px;margin-bottom:8px}
+.compact-page-intro .provider-catalog-toolbar{margin-bottom:8px}
+.compact-page-intro .provider-catalog-toolbar .ant-btn{height:var(--control-height-compact);font-size:12px;gap:6px}
+.compact-page-intro .provider-catalog-toolbar .anticon{font-size:14px}
+.compact-page-intro .session-evidence-list>.audit-heading{gap:12px;margin-bottom:var(--page-section-gap)}
+.compact-page-intro .session-evidence-list>.audit-heading p{margin:0;font-size:12px;line-height:20px}
+.compact-page-intro .session-evidence-list>.audit-heading .ant-btn{height:var(--control-height-compact);padding:3px 10px;font-size:12px}
+.compact-page-intro .session-evidence-list>.audit-heading .ant-checkbox-wrapper{font-size:12px}
+/* The conversation title and its scope note use the same horizontal rhythm. */
+.conversation-console .chat-heading>div:first-child{display:flex;flex:1;align-items:center;gap:12px;min-width:0}
+.conversation-console .chat-heading h2{flex:0 1 auto;max-width:60%;margin:0;line-height:22px;overflow-wrap:anywhere}
+.conversation-console .chat-heading>div:first-child>span{flex:1;min-width:0;line-height:18px}
+
+/* Apply the same density to every governance tab, including nested tables. */
+.governance-page .gov-toolbar,.governance-page .audit-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:0 0 10px}
+.governance-page .gov-toolbar>div:first-child,.governance-page .audit-heading>div:first-child{display:flex;flex:1 1 340px;align-items:center;gap:12px;min-width:0}
+.governance-page .gov-toolbar h2,.governance-page .audit-heading h2{flex:none;font-size:15px;line-height:22px;margin:0}
+.governance-page .gov-toolbar p,.governance-page .audit-heading p{flex:1;min-width:0;max-width:none;margin:0;font-size:12px;line-height:18px}
+.governance-page .pi-run-audit{margin:0}
+.governance-page .ant-tabs-content-holder .ant-btn{height:var(--control-height-compact);padding:3px 8px;font-size:12px;line-height:20px}
+.governance-page .ant-tabs-content-holder .text-link.ant-btn{height:auto;min-height:24px;padding:0;line-height:20px}
+.governance-page .gov-toolbar .ant-select{height:var(--control-height-compact);font-size:12px}
+.governance-page .gov-toolbar .ant-space{gap:6px!important}
+.governance-page .gov-summary{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;padding:0;margin:0 0 10px;font-size:12px;line-height:20px}
+.governance-page .gov-summary span{margin:0;font-size:11px}
+.governance-page .ant-table-wrapper .ant-table-thead>tr>th{padding:6px 10px!important;line-height:20px}
+.governance-page .ant-table-wrapper .ant-table-tbody>tr>td{padding:6px 10px!important;font-size:12px;line-height:20px;vertical-align:middle}
+.governance-page .ant-table-wrapper .ant-table-pagination{margin:12px 0 0}
+.governance-page .gov-law-name,.governance-page .gov-fact,.governance-page .gov-path{line-height:20px}
+.governance-page .gov-law-name{font-weight:500}
+.governance-page .gov-section{font-size:14px;line-height:22px;margin:16px 0 8px}
+.governance-page .ant-tabs-tabpane>p:not(.gov-summary){font-size:12px;line-height:20px;margin-bottom:10px}
+.governance-page .ant-empty{padding:16px 12px;margin-block:12px}
+.governance-page .ant-empty-description{font-size:12px;line-height:20px}
+.governance-page .ant-alert{margin-bottom:10px;padding:8px 12px}
+.governance-page .ant-alert-message,.governance-page .ant-alert-description{font-size:12px;line-height:20px}
+.governance-page .gov-batch{padding:10px 12px;margin-bottom:var(--page-section-gap);font-size:12px}
+.governance-page .gov-batch p{line-height:20px}
+.governance-page .gov-law-evidence{padding:6px 8px}
+.governance-page .gov-law-evidence p{line-height:20px;margin-bottom:6px}
+.governance-page .gov-policy{padding:10px 0 0;margin-top:14px;line-height:20px}
+.governance-page .gov-history{margin-top:10px}
+.governance-page .service-restart-button.ant-btn{margin-left:6px;background:#263b38;border-color:#263b38;color:#fff;font-weight:500}
+.governance-page .service-restart-button.ant-btn:not(:disabled):hover{background:#162b28;border-color:#162b28;color:#fff}
+.governance-page .service-restart-button.ant-btn:disabled{background:#e0e4e1;border-color:#d6dcd7;color:#87928c}

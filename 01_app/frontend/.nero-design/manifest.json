@@ -1,0 +1,23 @@
+{
+  "route": "frontend-ui",
+  "frontend_profile": "ai-app-ui",
+  "revision": "company-workspace-20260916",
+  "design_intent": "design-intent.json",
+  "state_catalog": "state-catalog.json",
+  "scorecard": "scorecard.json",
+  "logo_source": "logo-source.json",
+  "tokens_sources": [
+    "/Users/nero/Documents/Codex/design-team/tokens/colors.json",
+    "/Users/nero/Documents/Codex/design-team/tokens/typography.json",
+    "/Users/nero/Documents/Codex/design-team/tokens/spacing.json",
+    "/Users/nero/Documents/Codex/design-team/tokens/motion.json"
+  ],
+  "token_output": "src/styles.css + src/main.tsx theme",
+  "fused_reference_skills": {
+    "existing_ui": "复用现有黑金品牌、浅色工作区和 Ant Design；本轮未新增外部参考或依赖"
+  },
+  "component_system": "existing Ant Design",
+  "generator_used": false,
+  "image_generation_used": false,
+  "new_dependencies": []
+}

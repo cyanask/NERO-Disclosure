@@ -1,0 +1,85 @@
+/* NERO Banker: one provider list, authorization summaries, explicit expansion. */
+.model-settings-page.banker-model-settings{max-width:1060px}
+.banker-model-settings .page-heading{align-items:center;padding-bottom:25px;margin-bottom:22px;border-bottom:1px solid #d5d9d4}
+.banker-model-settings .page-heading h1{margin:0 0 5px;font-size:27px}
+.banker-model-settings .page-heading p{margin:0;font-size:13px}
+.provider-catalog-toolbar{margin:0 0 14px}
+.provider-catalog-toolbar .ant-btn{padding:0 4px;font-size:13px;font-weight:500;color:#596b53;gap:9px}
+.provider-catalog-toolbar .anticon{font-size:16px}
+.provider-list{background:#fff;border:1px solid #d6dcd4;border-radius:3px;overflow:hidden}
+.provider-panel{border:0;border-bottom:1px solid #dfe3dd;background:transparent;border-radius:0}
+.provider-panel:last-child{border-bottom:0}
+.provider-heading{display:flex;align-items:center;gap:12px;min-height:78px;padding:0 14px 0 0}
+.provider-disclosure{border:0;background:none;display:flex;align-items:center;gap:14px;flex:1;min-width:0;padding:16px 0 16px 18px;color:#28322b;text-align:left;cursor:pointer;font:inherit}
+.provider-disclosure:focus-visible,.model-default-choice:focus-visible{outline:2px solid #a58040;outline-offset:-3px}
+.provider-disclosure .model-provider-symbol{display:grid;place-items:center;flex:none;width:34px;height:34px;font-size:20px;background:#f2f4f1;color:#596b53;border-radius:8px}
+.provider-panel[data-provider-family="deepseek"] .model-provider-symbol .anticon{transform:rotate(90deg)}
+.provider-title{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.provider-title strong{font-size:15px;font-weight:600;overflow-wrap:anywhere;color:#262c28;line-height:1.4}
+.provider-title small{font-size:12px;line-height:1.5;color:#687566;overflow-wrap:anywhere;font-weight:400}
+.provider-title small.provider-authorized{color:#396a4e}
+.provider-expand-button.ant-btn{display:grid;place-items:center;flex:none;width:38px;height:44px;color:#677263}
+.provider-expand-button .anticon{font-size:11px}
+.provider-heading>.ant-checkbox-wrapper{margin:0}
+.provider-content{padding:0 18px 12px}
+.provider-columns,.compact-model-row{display:grid;grid-template-columns:minmax(150px,1fr) 100px 60px 115px 28px;gap:8px;align-items:center}
+.provider-columns{padding:10px 0;border-top:1px solid #e3e7e1;font-size:11px;color:#687565}
+.provider-columns>span:not(:first-child){text-align:center}
+.model-profile-row.compact-model-row{padding:7px 0;min-height:47px;border-bottom:1px solid #edf0eb}
+.compact-model-name{min-width:0}
+.compact-model-name h3{margin:0;font-size:13px;line-height:1.5;font-weight:500;color:#2d3b32;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.compact-model-name h3 small{font-size:10px;font-weight:400;color:#64745f;padding-left:9px}
+.model-cell{display:flex;align-items:center;justify-content:center;gap:8px}
+.model-mobile-label{display:none}
+.model-default-choice{width:30px;height:30px;border:0;display:grid;place-items:center;background:none;cursor:pointer;border-radius:50%;position:relative}
+.model-default-choice:before{content:'';position:absolute;inset:7px;border-radius:50%;border:1px solid #b7c2b3}
+.model-default-choice.selected:before{border:1.5px solid #657654}
+.model-default-choice.selected span{width:6px;height:6px;background:#657654;border-radius:50%}
+.model-default-choice:disabled{cursor:not-allowed;opacity:.55}
+.model-default-choice:hover:not(:disabled){background:#f0f3ed}
+.model-connection{text-align:center;min-width:0}
+.model-connection .ant-btn{font-size:11px;padding:0 4px;height:24px;color:#586853}
+.model-connection .ant-btn:disabled{color:#7a8675}
+.connection-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#b3bbaa;margin-right:5px;vertical-align:middle}
+.connection-dot.ready{background:#52815c}
+.model-check-detail{display:block;font-size:10px;color:#677560;line-height:1.5}
+.model-edit-button.ant-btn{color:#72816b}
+.provider-authorization{padding:10px 0 0}
+.provider-auth-row{display:flex;align-items:center;justify-content:space-between;gap:8px 14px;min-height:34px}
+.provider-auth-description{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.provider-auth-row strong{font-size:11px;font-weight:500;color:#62755b}
+.provider-auth-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.provider-api-key-row{align-items:flex-start;flex-direction:column;gap:7px;margin:5px 0}
+.provider-api-key-row .provider-auth-actions{width:100%;flex-wrap:nowrap}
+.provider-api-key-row .ant-input-affix-wrapper{flex:1;min-width:90px;max-width:470px;font-size:12px}
+.provider-auth-actions .ant-btn,.provider-add-model>.ant-btn{font-size:11px;flex-shrink:0}
+.provider-add-model{display:flex;gap:10px;flex-wrap:wrap;margin-top:5px}
+.provider-add-model>.ant-btn{padding-left:0;color:#65765b}
+.provider-add-model>.provider-unsupported{flex:1 1 100%;font-size:11px;line-height:1.5;color:#7c6a45}
+.provider-catalog-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0 16px;color:#656f60}
+.provider-catalog-footer p{display:flex;gap:10px;align-items:center;font-size:12px;margin:0;line-height:1.7}
+.provider-catalog-footer p>.anticon{font-size:15px;flex-shrink:0}
+.provider-catalog-footer .ant-btn{font-size:12px;flex-shrink:0}
+.model-advanced-settings{font-size:11px;color:#6b7864;line-height:1.8;margin-top:22px}
+.model-advanced-settings summary,.model-advanced-fields summary{cursor:pointer;min-height:28px;color:#62755a}
+.model-advanced-settings p{margin:8px 0}
+.model-advanced-actions{display:flex;gap:10px;margin:7px 0 14px;flex-wrap:wrap}
+.model-advanced-actions .ant-btn{font-size:12px}
+.model-advanced-fields{border-top:1px solid #e8edef;padding-top:14px;font-size:12px}
+.model-form .model-enable-field{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.model-enable-field small{font-size:11px;color:#5e727c}
+.banker-model-settings .model-status-ready{color:#3e725d}.banker-model-settings .model-status-pending{color:#8a642b}
+@media(max-width:1050px){.provider-columns,.compact-model-row{grid-template-columns:minmax(130px,1fr) 84px 48px 105px 26px;gap:5px}}
+@media(max-width:600px){.banker-model-settings .page-heading{align-items:flex-start;gap:8px}.provider-heading{padding-right:5px;gap:8px}.provider-disclosure{padding-left:12px;gap:10px}.provider-title strong{font-size:14px}.provider-title small{font-size:11px}.provider-disclosure .model-provider-symbol{width:30px;height:30px;font-size:18px}.provider-content{padding:0 12px 12px}.provider-columns{display:none}.model-profile-row.compact-model-row{grid-template-columns:1fr 1fr 28px;gap:6px;padding:10px 0}.compact-model-name{grid-column:1/3}.model-edit-button{grid-column:3;grid-row:1}.model-cell{justify-content:flex-start;grid-row:2}.model-connection{grid-column:1/-1;text-align:left;display:flex;align-items:center;gap:8px}.model-mobile-label{display:inline;font-size:11px;color:#67765e}.provider-auth-row{align-items:flex-start;flex-direction:column}.provider-api-key-row .provider-auth-actions{flex-wrap:wrap}.provider-api-key-row .ant-input-affix-wrapper{flex-basis:100%;max-width:none}.provider-catalog-footer{align-items:flex-start;flex-direction:column;gap:10px}.provider-catalog-footer p{align-items:flex-start}.provider-catalog-footer .ant-btn{align-self:flex-end}}
+/* Keep model form actions visible while long advanced fields scroll. */
+.ant-modal.model-settings-dialog{top:56px}
+.ant-modal.model-settings-dialog .ant-modal-content{display:flex;flex-direction:column;max-height:calc(100dvh - 112px)}
+.ant-modal.model-settings-dialog .ant-modal-header,.ant-modal.model-settings-dialog .ant-modal-footer{flex-shrink:0}
+.ant-modal.model-settings-dialog .ant-modal-body{min-height:0;overflow-y:auto;scrollbar-gutter:stable}
+@media(max-width:600px){.ant-modal.model-settings-dialog{top:24px}.ant-modal.model-settings-dialog .ant-modal-content{max-height:calc(100dvh - 48px);padding:22px}.ant-modal.model-settings-dialog .ant-modal-footer{margin-top:18px}}
+
+.model-form .ant-checkbox-wrapper{display:inline-flex;align-items:center;gap:0}
+
+/* Scoped cloud credentials may require several fields in one provider row. */
+.provider-api-key-row .provider-auth-actions{flex-wrap:wrap}
+.provider-auth-actions .provider-credential-field{flex:1 1 220px;min-width:160px}

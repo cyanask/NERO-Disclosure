@@ -1,0 +1,30 @@
+{
+  "defaultsSource": "Pi coding-agent 0.85.1 modelFromJson",
+  "defaults": {
+    "contextWindow": 128000,
+    "maxTokens": 16384,
+    "reasoning": false,
+    "input": ["text"]
+  },
+  "thinkingLevels": ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+  "apis": [
+    {"id": "openai-responses", "label": "OpenAI Responses"},
+    {"id": "openai-completions", "label": "OpenAI 兼容接口"},
+    {"id": "anthropic-messages", "label": "Anthropic"},
+    {"id": "google-generative-ai", "label": "Google Gemini"},
+    {"id": "openai-codex-responses", "label": "ChatGPT / Codex"},
+    {"id": "azure-openai-responses", "label": "Azure OpenAI"},
+    {"id": "google-vertex", "label": "Google Vertex"},
+    {"id": "bedrock-converse-stream", "label": "Amazon Bedrock"},
+    {"id": "mistral-conversations", "label": "Mistral"},
+    {"id": "pi-messages", "label": "Pi Messages"}
+  ],
+  "credentialFields": {
+    "cloudflare-workers-ai": ["CLOUDFLARE_ACCOUNT_ID"],
+    "cloudflare-ai-gateway": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_GATEWAY_ID"],
+    "amazon-bedrock": ["AWS_REGION", "AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"],
+    "google-vertex": ["GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION", "GOOGLE_APPLICATION_CREDENTIALS"],
+    "azure-openai-responses": ["AZURE_OPENAI_RESOURCE_NAME", "AZURE_OPENAI_BASE_URL", "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_DEPLOYMENT_NAME_MAP"]
+  },
+  "secretCredentialFields": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"]
+}

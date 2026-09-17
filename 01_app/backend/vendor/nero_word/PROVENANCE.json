@@ -1,0 +1,11 @@
+{
+  "owner": "NERO shared Word primitives",
+  "policy": "Unmodified portable snapshot of the shared implementation; do not fork the primitives here. Update from declared source with hash review.",
+  "files": [
+    {
+      "file": "word_primitives.py",
+      "source": "nero-word-delivery skill: scripts/word_primitives.py（作者本机共享实现，按哈希核对后同步）",
+      "sha256": "7f617bd44991816623daea49e0a965738d8b24b8a6b3a144c6d90e61d636cd8b"
+    }
+  ]
+}

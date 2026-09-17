@@ -1,0 +1,3 @@
+.chat-composer .composer-foot{flex-wrap:wrap}
+.chat-composer .composer-foot>.ant-select{min-width:190px}
+.chat-composer .composer-foot>.ant-btn{flex-shrink:0}
