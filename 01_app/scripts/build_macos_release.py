@@ -205,7 +205,6 @@ def build(args):
     run(['codesign','--verify','--deep','--strict',bundle])
     readme=(APP/'native/macos/INSTALL.txt').read_text()
     (media/'安装说明.txt').write_text(readme)
-    shutil.copy2(APP/'docs/MACOS_APPLICATION.md',media/'技术说明.md')
     result={**metadata,'app':str(bundle),'payload_files':count,'source_files':source_rows,
             'knowledge_files':knowledge_rows,'code_signing_verified':True}
     if args.dmg:

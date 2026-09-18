@@ -4,7 +4,7 @@
 This checks file identity (path/bytes/SHA-256) recorded in BUILD_MANIFEST.json.
 It proves the directory matches the NERO-published version, not legal content.
 The default source scope covers the source package only; the runtime package,
-the data package and generated caches stay outside it (see docs/PACKAGE_BOUNDARY.md)
+the data package and generated caches stay outside it (see the repository README)
 and are therefore not checked here.
 """
 import hashlib

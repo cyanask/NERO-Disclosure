@@ -4,7 +4,9 @@ import ast
 from pathlib import Path
 
 APP = Path(__file__).resolve().parents[1]
-OUTPUT = APP / 'docs/API.md'
+OUTPUT = APP.parent / 'DEVELOPMENT.md'
+START = '<!-- API-REFERENCE:START -->'
+END = '<!-- API-REFERENCE:END -->'
 METHODS = {'get', 'post', 'put', 'patch', 'delete', 'head', 'options'}
 
 
@@ -21,19 +23,11 @@ def render():
                     if isinstance(route, ast.Constant) and isinstance(route.value, str):
                         rows.append((source.name, node.lineno, decorator.func.attr.upper(), route.value, node.name))
     lines = [
-        '# HTTP API', '',
-        '从后端路由声明生成。权限和状态条件见处理函数；'
-        '表中包含返回 410 的退役接口及条件挂载接口。'
-        '应用入口为 `backend/app.py:create_app`。', '',
-        '更新文档：`python3 01_app/scripts/generate_api_docs.py`；'
-        '检查同步：在命令后添加 `--check`。', '',
-        'Pi 进程内操作见 `backend/workflow_operations.py`，'
-        '模型工具按 `backend/pi_runtime.py:PiRuntime.tools` 的阶段规则开放。', '',
         f'共 {len(rows)} 个 HTTP 方法与路径声明。', '',
         '| 方法 | 路径 | 实现与行号 | 处理函数 |', '| --- | --- | --- | --- |',
     ]
     for filename, line, method, route, function in sorted(rows):
-        lines.append(f'| {method} | `{route}` | [{filename}:{line}](../backend/{filename}#L{line}) | `{function}` |')
+        lines.append(f'| {method} | `{route}` | [{filename}:{line}](01_app/backend/{filename}#L{line}) | `{function}` |')
     return '\n'.join(lines) + '\n'
 
 
@@ -41,15 +35,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
-    content = render()
+    original = OUTPUT.read_text('utf-8')
+    if original.count(START) != 1 or original.count(END) != 1 or original.index(START) >= original.index(END):
+        raise SystemExit('开发文档的接口区域标记缺失或重复，未改写文件')
+    before, rest = original.split(START)
+    _, after = rest.split(END)
+    content = before + START + '\n' + render() + END + after
     if args.check:
-        if not OUTPUT.is_file() or OUTPUT.read_text('utf-8') != content:
+        if original != content:
             raise SystemExit('接口文档与源码不一致，请运行 scripts/generate_api_docs.py')
         print('接口索引与源码一致')
     else:
-        OUTPUT.parent.mkdir(parents=True, exist_ok=True)
         OUTPUT.write_text(content, encoding='utf-8')
-        print(OUTPUT.relative_to(APP))
+        print(OUTPUT.name)
 
 
 if __name__ == '__main__':

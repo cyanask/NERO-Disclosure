@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rebuild BUILD_MANIFEST.json for the source package.
 
-Scope follows docs/PACKAGE_BOUNDARY.md. The default ``source`` scope covers the
+The repository README describes the three data roots. The default ``source`` scope covers the
 source package only (code, docs, tests and the delivered frontend bundle). The
 legacy ``full`` scope inventories the whole working directory, including the data
 and runtime packages that are shipped by folder copy instead of a code baseline.
