@@ -1,28 +1,31 @@
-# 会话中的 Word 制作
+# 起草与 Word
 
-用户可直接说“认可你的方案，请制作成 Word”，或“先按当前资料制作公告，缺的标待补”。Pi 选择 `disclosure/document`，从当前公司、事项、会话和已保存文稿组织内容，选择实际模板后调用既有 `scripts/agent_word.py`。公告和分析材料使用相同交互方式，不要求走完事项全部节点。
+在对话操作台提出需求：仅咨询时返回分析；要求“拟公告”时准备正文；明确要求 Word 时进入文件制作。公告与咨询材料都可以从当前会话直接制作，不要求先走完全部事项节点。
 
-咨询和拟公告分别加载项目方法 Skill。拟公告先保存正文版本，用户可回复确认，并随时要求 Word；Word 区分公告和咨询回复。会话主要对外输出文件，系统外修改无需回传。流程见[咨询、拟公告与 Word 输出](CONSULTATION_ANNOUNCEMENT_FLOW.md)。
+## 资料核对
 
-文档以独立版本保存。生成只更新会话文档，不修改事项阶段、不代签正文确认、不发布。最终文件在文档卡片中集中审阅；文字预览不是分页验收，实际版式应打开 Word 核对。浏览器下载请求和保存成功分别处理，安全策略拦截不会标为下载完成。
+起草前核对文稿范围、资料和缺口。资料不足时先提示；使用者明确接受已告知缺口，或明确要求缺项留空并制作工作稿后，系统记录该选择并继续。事实冲突、跨会话来源或损坏文件仍需处理。
 
-## 执行与数据边界
+接受缺口只授权制作待补稿，不代表确认正文或正式定稿。详细状态与字段约定见[起草行为合同](specs/DRAFTING_BEHAVIOR_CONTRACT.md)。
 
-- 唯一控制器仍为 `PiRuntime`。`document_runtime` 是其工具实现，不创建额外 Agent、队列或常驻服务。
-- 每轮绑定现有 session/run、公司和板块；制文前自动冻结事项版本、用户陈述、文档索引版本、正文和模板。实际文件回读及哈希通过后才能登记。
-- 文稿与文件存于 `03_local/work/documents/<session>/`，`index.json` 是文档版本和审阅状态的真源；run 中只保存产物引用。沿用原子写入和当前 runtime 单实例锁，不改变数据库 schema。
-- 同一批次多文稿全部制作成功后原子登记。取消、超时、旧版本和跨会话访问不会替换当前稿；未登记临时文件不显示为交付成功。服务重启沿用 interrupted 状态恢复规则，已有文档从索引读取，模型调用不会自动重放。
-- 用户在会话内提出修改，系统基于已登记的当前稿生成新版本。公告 Word 使用正文段落锚点修改副本，除 `word/document.xml` 外的 package parts 保持字节一致；无法定位或跨段修改明确失败。历史人工稿仍受原有保护，不再导入新人工稿或读取外部工作副本。
-- 最终确认由浏览器用户操作，绑定当前版本及哈希，不能由模型调用。待补事项未解决时可下载审阅，但不能标为定稿。
+## 版本与修改
 
-## 工具与接口
+正文、模板快照、Word 文件和审阅状态按会话保存。提出修改时，系统基于已登记稿件生成新版本；文件通过回读和哈希核对后才出现在文档列表中。
 
-Pi 文档阶段提供 `read_document_context`、`read_document_template`、`read_document`、`make_word`，并沿用当前板块资料检索工具。正文事实通过 `basis` 原句绑定本轮来源；模型组织与机器校验不等于人工业务接受。
+公告 Word 使用段落锚点修改副本，不能定位的修改会返回错误。当前流程不接收新的人工稿回传；历史文件及版本仍可读取。旧文稿导入和外部副本打开接口返回 410。
 
-浏览器可读取 `/api/chat/sessions/{sid}/documents` 及文件、文字预览，提交当前文件 review。浏览器没有文稿生成 API。旧 `/exports` POST、`/documents/import` POST、`/documents/{id}/open` POST 返回 410；历史文件及版本仍可读取。
+同批文稿全部制作成功后才登记。取消、版本冲突和跨会话访问不会替换当前稿。生成文件不会推进事项阶段或代签确认。
 
-## 验证要求
+## 下载与审阅
 
-覆盖咨询直接制文、方案中途制作公告、复用正文、多文件、带待补项、系统内修订、历史版本保护、停用回传、外部副本变化隔离、旧版本冲突、跨会话访问、取消和重启恢复；必须区分模拟模型的集成测试与真实模型/browser evidence。短指令验收不能依赖外部 Agent 代写冗长业务提示。
+在会话文档区或“交付文件”中下载 Word。网页文字预览不能反映分页和最终版式，应在实际使用的 Word/WPS 环境检查。存在未解决待补项的文件可以下载，但不能标为定稿。
 
-<!-- prose-quality-binding: {"core_id": "nero-chinese-prose-quality", "core_version": "0.4.0", "profile": "general", "rules_sha256": "4758913f7f778ff53e520c480a470ad4aab40112855ca97a5b905a2db6f129b3", "body_sha256": "75c07a16ee9850c20a5d09f64ede97561b713d5910d6ebc0d446ff6d19a0dddf", "body_scope": "text before this comment, normalized to one trailing newline", "automatic_check": {"deterministic_pass": true, "finding_count": 0}, "model_review": "Reviewed output-only scope against code and observed checks; historical sources and human acceptance remain separate", "human_acceptance": "not_claimed"} -->
+文件、来源快照与版本索引位于 `03_local/work/documents/<session>/`。不要手工替换已登记的哈希文件；正文修改应通过会话生成新版本。
+
+## 实现入口
+
+- `backend/document_preflight.py`：核对资料、记录缺口与用户选择。
+- `backend/document_runtime.py`：组织工具调用和文件生产。
+- `scripts/agent_word.py`、`scripts/word_renderer.py`：生成 Word。
+- `backend/document_store.py`、`document_files.py`：版本、文件和哈希管理。
+- `backend/document_api.py`：列表、下载与当前版本审阅接口。

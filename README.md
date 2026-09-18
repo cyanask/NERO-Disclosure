@@ -1,80 +1,51 @@
-# NERO Disclosure（信息披露 AI 系统）开发仓库
+# NERO Disclosure
 
-本仓库只包含 **信息披露 AI 系统的软件源码与规则**，用于协作开发、代码审阅和发布构建。业务知识库、历史公告库和本机业务数据不进入本仓库。
+面向信披工作的本机 AI 工作台，使用 React、FastAPI 和 Pi 运行时。支持信披咨询、公告起草、Word 制作，以及法规、案例、模板和公司历史公告管理。当前开放创业板。
 
-审查智能体架构、全部功能和工程化成熟度，请从[审阅入口](01_app/docs/REVIEW_GUIDE.md)开始。该页提供功能与源码、测试的映射、运行边界、已验证结果和仍需评审的工程问题；[接口清单](01_app/docs/review/API_INVENTORY.md)覆盖声明的 HTTP 接口。公开可见不等于获得开源许可证授权，项目目前未声明通用开源许可；第三方组件遵循各自许可证。
+**源码公开，仅限学习、研究和非商业用途，禁止商用。**
 
-## 仓库边界
+## 功能
 
-软件按三类目录合同运行：`01_app/` 软件与规则、`02_knowledge/` 可加载知识库、`03_local/` 本机工作与历史。
+- 公司与会话：公司身份核实、会话历史、上下文续接、运行进度与取消。
+- 咨询与起草：检索依据、披露判断、内容规划、公告正文与缺项处理。
+- 文档：生成和修改 Word，保存版本、来源与审阅状态。
+- 资料：法规和案例检索、知识更新、模板管理、公告时间表及分类复判。
+- 本机运行：模型配置、凭据管理、执行记录和中断恢复。
 
-| 目录 | 是否在本仓库 | 说明 |
-| --- | --- | --- |
-| `01_app/` | 是 | 后端、前端源码、真实提供服务的页面、Skill、脚本、测试、原生启动器与依赖锁文件 |
-| `02_knowledge/` | 否 | 法规、案例、黑名单、模板、公司公告原件与正文、SQLite 检索投影；由经授权的知识包单独提供 |
-| `03_local/` | 否 | 事项库、会话库、文稿与交付物、模型配置、备份与本机历史 |
+## 快速开始
 
-仓库自带 `01_app/tests/fixtures/knowledge/`（**虚构样例**），用于在没有知识包的机器上运行默认测试和开发服务器。样例不含真实法规、公告、案例或公司，不得用于业务判断、对外交付或披露文件编制。正式运行必须加载经授权的知识包。
-
-## 环境准备
-
-- Python 3.13（`01_app/requirements.lock.txt` 为准）。
-- Node.js 22.19 以上（Pi 运行进程与前端构建）。
-
-下列命令从 macOS 上的仓库根目录执行；Windows 原生运行与发行版验收不包含在本次上传验证中。
+环境：macOS、Python 3.13、Node.js 22.19 或更新版本。以下命令在仓库根目录执行。
 
 ```sh
+git clone https://github.com/cyanask/NERO-Disclosure.git
+cd NERO-Disclosure
 python3.13 -m venv .venv
-.venv/bin/pip install -r 01_app/requirements.lock.txt
-
+.venv/bin/python -m pip install -r 01_app/requirements.lock.txt
 (cd 01_app/runtime/pi && npm ci)
 (cd 01_app/frontend && npm ci && npm run build)
+.venv/bin/python 01_app/scripts/dev_server.py
 ```
 
-前端构建产物 `01_app/frontend/dist/` 不进入版本库，需要先执行 `npm run build`。发行脚本只复制已有的 `dist/`，不会替代前端构建。
+打开 [http://127.0.0.1:8765](http://127.0.0.1:8765)。开发入口预置虚构公司，可直接浏览工作台；咨询、生成和联网功能需在“模型设置”中配置自己的模型账号。
 
-## 运行默认测试
+仓库不包含正式知识库、公司历史公告或个人业务数据。开发样例仅用于测试，不可用于正式信披工作。正式知识包的加载方式见[数据与目录](01_app/docs/PACKAGE_BOUNDARY.md)。
 
-```sh
-(cd 01_app && ../.venv/bin/python -m pytest -q)
-```
+## 文档
 
-默认测试使用虚构样例，不需要知识包，约 600 项。带 `knowledge_pack` 标记的集成测试需要经授权的知识包，按以下方式运行：
+| 主题 | 内容 |
+| --- | --- |
+| [架构](01_app/docs/ARCHITECTURE.md) | 运行链路、模块职责与状态管理 |
+| [模型配置](01_app/docs/CONFIGURATION.md) | 供应商、账号授权与模型选择 |
+| [起草与 Word](01_app/docs/RUNTIME_DOCUMENTS.md) | 正文、缺项、文档版本与修改 |
+| [数据与目录](01_app/docs/PACKAGE_BOUNDARY.md) | 知识包、本机数据、迁移与索引 |
+| [macOS 打包](01_app/docs/MACOS_APPLICATION.md) | 构建输入、安装与分发 |
+| [API](01_app/docs/API.md) | HTTP 接口与实现位置 |
+| [参与开发](CONTRIBUTING.md) | 测试、提交与拉取请求 |
 
-```sh
-(cd 01_app && NERO_DISCLOSURE_KNOWLEDGE_ROOT=/path/to/02_knowledge ../.venv/bin/python -m pytest -q -m knowledge_pack)
-```
+## 使用范围
 
-默认测试通过只说明确定性检查通过，不代表知识包内容、真实模型效果或业务结论已经验收。知识包测试的数量断言针对 1.0 的历史快照；正式库发生增删后应由维护者复核期望值，不能据此把所有差异当作软件缺陷。
+系统按本机单用户方式运行，不提供面向互联网的多用户登录和权限体系。生成内容需要使用者核对；保存文件不会自动确认正文或执行公开披露。Windows 相关源码保留在仓库，原生运行支持需在目标环境验证。
 
-## 启动开发服务器
+## 许可证
 
-```sh
-(cd 01_app && ../.venv/bin/python scripts/dev_server.py)
-```
-
-开发入口首次建立虚构知识目录，并预置 `000000 / 虚构审查公司（仅开发）`，无需模型账号即可进入各功能页。再次启动保留已有样例修改；遇到没有有效样例标记的目录会拒绝启动。测试 PDF 是字节占位样本，不适合作为 PDF 阅读器或 OCR 的演示原件。
-
-服务地址为 `http://127.0.0.1:8765`，数据库与模型配置写入 `03_local/dev/var`；文稿、附件、研究临时资料仍按三类根合同写入 `03_local/work/` 等目录。请在独立克隆中运行开发入口，不能用 `--data-dir` 将整个运行环境隔离到另一个目录。需要新的样例环境时使用新的克隆，不覆盖既有资料。
-
-本入口没有模拟聊天模型。真实咨询、拟稿、公司联网核实和 Pi 复判须在模型设置中配置自己的账号，并显式发起；离线验证可运行带模拟供应商的测试。正式运行仍用 `scripts/run.py` 加载经授权知识包。
-
-## 目录约定与关键文件
-
-- `01_app/backend/`：API、工作流、检索、存储与模型接入；路径解析集中在 `backend/paths.py`。
-- `01_app/frontend/`：React + TypeScript + Vite 界面，实际提供服务的页面需构建后生成。
-- `01_app/skills/`：阶段 Skill 与披露流程合同。
-- `01_app/scripts/`：开发、维护、验证与发行构建脚本。
-- `01_app/docs/`：架构、运行、迁移与维护说明。
-- `01_app/native/macos/`：原生启动器与 OCR 的 Swift 源码。
-- `01_app/tests/`：默认测试与 `fixtures/` 虚构样例。
-
-## 协作方式
-
-1. 从 `main` 创建功能分支，例如 `codex/<topic>` 或 `feat/<topic>`。
-2. 提交前运行默认测试、前端 `npm test`、类型检查与构建、Pi 运行进程测试。
-3. 发起拉取请求，说明改动目的、验证方式和未完成项；由仓库维护者审阅合并。
-
-提交内容不得包含知识库资料、公司公告、客户或交易信息、模型密钥、证书以及任何本机业务数据。详见[贡献指南](CONTRIBUTING.md)。
-
-正式 App 构建、安装、公证与对外发布须经维护者单独授权；普通开发提交不触发这些动作。
+本项目禁止商用，详见[使用声明](LICENSE)。第三方组件保留各自许可证，见[第三方说明](01_app/docs/THIRD_PARTY_NOTICES.md)。

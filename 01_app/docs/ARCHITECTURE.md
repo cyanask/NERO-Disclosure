@@ -1,42 +1,49 @@
-# 136 架构与接口合同
+# 架构
 
-本文保留结构化事项工作流的架构说明；当前咨询、公告正文、按需 Word 与旧节点兼容路径的完整映射，以[审阅入口](REVIEW_GUIDE.md)和对应实现为准。历史示例和本机验证记录不作为公开版本的运行验收。
+NERO Disclosure 由浏览器界面、本机 Python 服务和 Pi 模型运行器组成。服务默认监听回环地址；用户通过页面选择公司、模型和工作任务。
 
-本文件描述当前源码合同。业务工作流仍可复用同一套职责，但当前运行面只开放创业板；基础层和创新层知识库已迁出到工作区外的普通文件夹归档，上交所主板、科创板、深交所主板及北交所也暂不可用。本轮板块切换记录见 `CHINEXT_ONLY_KNOWLEDGE_BOUNDARY.md`；历史三板块拆分记录不再表示当前可用范围。
+## 运行链路
 
-一个治理闭环、三个业务节点、六类治理职责。三节点仍为披露判断、内容清单、公告正文；当前事项事实是待分析的业务输入。R1 法律库提供权威法源，R2 案例、profile、官方格式和版式规则约束生产。R3 工具由 Harness 与本机 Pi 运行时按职责提供；R4 保留任务、租约、输入及产物状态；R5 在载入、推进和登记处执行 Verify/Gate；R6 记录来源、版本、任务、阻断与交付物。
+```text
+React 工作台
+    → FastAPI 本机服务
+    → PiRuntime：绑定会话、模型、权限与运行状态
+    → Node worker：调用模型与执行工具循环
+    → 服务端工具：读取资料、核验候选、保存文稿
+```
 
-## 权威与派生关系
+[app.py](../backend/app.py)装配接口和共享上下文。[PiRuntime](../backend/pi_runtime.py)持有运行所有者、工具路由、取消与恢复逻辑；[worker.mjs](../runtime/pi/worker.mjs)负责 Pi SDK 调用和进程消息交换。模型通过当前阶段开放的工具工作，不能自行改变服务端权限。
 
-- `data/public/boards/<board>/catalog.json`：已登记条文与案例记录；原件和提取文件通过哈希引用。
-- `data/public/boards/<board>/profiles.json`：文种结构真源，模板投影读取这里的章节与版式绑定。
-- `data/public/boards/<board>/rules.json`：确定性判断的已编码切片，有明确法源依赖，不能独立证明完整法律正确性。
-- `templates/boards/<board>/layout_profiles.json`：内容以外的版式约束，并核对案例归纳记录哈希。
-- `var/disclosure.sqlite3`：事项事实、版本、候选、任务、操作幂等和执行痕迹；此次不变更 schema。
-- `templates/boards/<board>/manifest.json`：独立模板选择与版本；原始 Word 字节可以复用或按来源复制，存储复用不表示跨板块适用。
-- SQLite 目录索引、更新锁、历史版本与单个 profile 投影均位于当前板块目录，检索仍以该板块 JSON 真源为准。
-- 顶层旧清单、基础层/创新层板块目录和 NEEQ 专属依赖已随外部归档清单保留，现行库接口不回退读取。工作区内的 `initial_overlap.json`、`import_receipt.json` 等跨板块记录只作历史追溯，不构成运行库。
-- 条目身份为 `(board, id)`。库接口必须指定 board；无效、未启用或已归档板块拒绝读取。板块注册表可无板块读取，带板块时只返回当前创业板公司和文种。事项及任务操作由服务端按 event.layer 选择当前创业板库。
-- 基础层/创新层资料的历史重叠及案例发布层级待核对标记保留在外部归档。创业板无官方原件案例仍为待核验候选，不能作为通过校验的案例引用；导入版式在 draft Gate 保留适用性复核阻断。
+## 模块
 
-## 流转
+| 职责 | 主要入口 |
+| --- | --- |
+| 公司、会话与界面 | `company_workspace.py`、`company_lookup.py`、`chat_api.py`；前端 `App.tsx` |
+| 意图与工具分流 | `intent_control.py`、`PiRuntime.tools/route_request/bridge` |
+| 模型与凭据 | `model_settings.py`、`model_credentials.py`、`runtime/pi/provider_runtime.mjs` |
+| 结构化事项 | `agent_tasks.py`、`disclosure_contract.py`、`gates.py`、`continuous_workflow.py` |
+| 公告与 Word | `announcement_runtime.py`、`document_preflight.py`、`document_runtime.py` |
+| 资料管理 | `library.py`、`library_admin.py`、`announcement_history.py`、`knowledge_ops.py` |
+| 存储与追踪 | `storage.py`、`chat_store.py`、`document_store.py`、`evidence_summary.py` |
 
-`task.request` 冻结该节点事实、三库、模板及 Skill。本机 Pi 运行时经进程内路由领取任务，15 分钟租约由 `claim_id` 隔离；名称和运行引用均为自报字段，不作为身份依据。`task.submit` 留存候选，不覆盖当前稿。`task.adopt` 对当前输入重新验证后载入，`gate.advance` 保存 PASS 收据；后续节点验证上游收据的当前输入指纹。
+表内 Python 文件位于 `backend/`。HTTP 声明见 [API](API.md)；进程内工作流操作见 [workflow_operations.py](../backend/workflow_operations.py)。
 
-时效检查逐一核对必需法源和候选法源的生效日、失效日、核验截止日、文本与登记文件哈希。时效不符返回 `review_law_library`；法源缺失返回 `search_official_web`，由本机 Pi 运行时联网检索。不得依赖 `no_disclosure` 或旧 approved 字段绕过。检索反馈绑定节点和当前输入；`not_found` 要求反馈用户并停止，`found` 仍须收录、重新绑定和重新验证。
+## 工作流程
 
-任何已编码规则的专业复核状态、候选冲突或实质缺口都阻断。此次没有增加人工裁决强制通过接口。对于尚未覆盖的规则，需要先处理事实/法源/规则问题，不能以软件 Gate 代替专业判断。
+当前会话按需求进入咨询、公告起草、Word 制作或知识维护。起草先核对资料与文稿范围，再开放保存正文或生成文件的工具；详细行为见[起草与 Word](RUNTIME_DOCUMENTS.md)。
 
-事实、当前板块法源、profile、版式、模板或当前节点方法变化使相应旧输入失效。单板块清单更新不会改变其他板块任务输入；共用原始文件字节变化仍会使所有引用该文件的板块失效。每次推进均重新核验；历史 approved 或 accepted 不会转换为新 Gate 的 PASS。旧候选、原稿和交付物按版本保留。
+系统同时保留结构化事项路径：`assessment → plan → template → draft → word`。各阶段保存输入快照和候选；采用候选时重新核对事实、法源、模板、版本与确认记录。修改输入会使相关旧结果失效。
 
-## 工具与交付
+方法正文和引用哈希登记在 [skills/registry.json](../skills/registry.json)。带 `neeq` 的历史文件名不决定可用板块；运行范围由 [boards.py](../backend/boards.py)和知识包合同控制。
 
-当前运行面是本机 Pi：后端为每一轮启动一个 Node 子进程（`runtime/pi/worker.mjs`）执行模型与工具调用，模型由页面显式选择，凭证只经本机授权通道注入，没有后台采集、自动唤起或定时任务。Word 由 `scripts/agent_word.py` 按 `word.context` 返回的冻结材料生成，当前由本机 Pi 运行时在本地调用，结果经 `artifact.register` 校验登记。事项与候选上的 `mode`/`executor` 取值 `external_agent` 是外部宿主时期保留的标识，含义是“候选由 Agent 生成、等待 Web 人工确认”，不代表还存在外部宿主。
+## 状态与恢复
 
-Web 与本机 Pi 运行时调用同一组业务操作与 Gate：Pi 经进程内路由 `pi_route` 复用 HTTP 层的同一实现，外部 HTTP/CLI/MCP 接入链已移除。保留本机 Host、同源 Origin、CSRF 与请求体上限。登录、密码、人工授权与旧生成入口已停用。
+事项、会话运行和文稿分别持久化。运行绑定 `run_id`、`session_id`、`event_id`、公司、板块及所选模型；文稿以会话范围的版本索引和文件哈希定位。数据位置见[数据与目录](PACKAGE_BOUNDARY.md)。
 
-库维护采用同目录锁、整批校验、读取版本比对、历史快照和原子替换。原件哈希与正文哈希分开；索引失败返回“真源已提交、投影待重建”。一个原子提交只修改一个 canonical 清单；本次不承诺跨库事务。
+同一数据目录使用运行锁防止重复占用。取消时停止本轮执行；服务重启后，将没有活跃所有者的未完成运行标为中断，不自动重放模型调用或生产操作。已经登记的文件和历史版本保留。
 
-## 可观察性边界
+## 安全边界
 
-候选、租约、阻断、Gate 收据和文件登记可复核。Gate PASS 不代表专业结论被人工接受；Pi 轮次的复核说明不等于独立视觉验收；文件登记不等于发布。当前验证等级及已运行命令见 `CHINEXT_ONLY_KNOWLEDGE_BOUNDARY.md`；创业板既有资料缺口不因板块归档而被标记为通过。
+本机接口检查 Host、Origin 和 CSRF；内部工具调用使用进程内身份。凭据经系统凭据库和私有通道提供给运行器，不写入源码或普通日志。该机制不提供互联网多用户鉴权。
+
+外部资料只提供内容，不授予操作权限。候选核验、正文确认、文件保存和公开发布是不同动作；模型声称完成不能代替真实产物登记。

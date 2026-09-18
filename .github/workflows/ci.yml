@@ -31,10 +31,10 @@ jobs:
       - name: 安装 Pi 运行依赖
         working-directory: 01_app/runtime/pi
         run: npm ci
-      - name: 公开源码边界与审阅索引
+      - name: 源码边界与接口文档
         run: |
           python 01_app/scripts/check_source_boundary.py
-          python 01_app/scripts/review_inventory.py --check
+          python 01_app/scripts/generate_api_docs.py --check
       - name: 默认测试（虚构样例，不需要知识包）
         working-directory: 01_app
         run: python -m pytest -q
