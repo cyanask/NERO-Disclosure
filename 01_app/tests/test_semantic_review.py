@@ -204,7 +204,7 @@ def test_runtime_reviews_in_fresh_context_then_adopts_supported_candidate(client
     assert reply['data']['outcome'] in ('continue','waiting_approval'),reply
     packets=[packet for kind,packet in seen if kind=='review']
     assert len(packets)==1
-    assert packets[0]['history']==[] and packets[0]['tools']==[]
+    assert packets[0]['history']==[] and 'knowledge_web_search' in {t['name'] for t in packets[0]['tools']}
     assert '独立的事实一致性复核员' in packets[0]['system']
     saved=c.get('/api/events/'+e['id']).json()
     assert saved['verified_stages']['assessment']['status']=='PASS'
@@ -237,15 +237,15 @@ def test_unusable_reviewer_output_blocks_with_explicit_reason(client):
     assert c.get('/api/events/'+e['id']).json()['assessment'] is None
 
 
-def test_missing_review_model_blocks_instead_of_guessing(client):
+def test_review_uses_selected_model_instead_of_separate_override(client):
     c,runtime,_=client
     runtime.config_override={**CONFIG,'semantic_review':{'model_key':'not-configured-model'}}
     e,rid,seen=run_flow(c,runtime,json.dumps({'verdicts':[]}))
     reply=next(body for kind,body in seen if kind=='reply')
     assert reply['data']['outcome']=='blocked'
     journal=[row['body'] for row in runtime.store.journal(rid) if row['kind']=='semantic_review_result']
-    assert journal and journal[-1]['source']=='model_unavailable'
-    assert [packet for kind,packet in seen if kind=='review']==[]
+    assert journal and journal[-1]['source']=='invalid_result'
+    assert [packet['model']['id'] for kind,packet in seen if kind=='review']==['offline-a']
 
 
 def test_identical_candidate_reuses_review_record_across_events(client):

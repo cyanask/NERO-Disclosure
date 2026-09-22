@@ -10,6 +10,7 @@ from backend import paths as workspace_paths
 from backend.app import create_app
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+from scripts.service_instance import service_instance, exec_restart
 
 
 def main():
@@ -19,10 +20,18 @@ def main():
     parser.add_argument('--seed-root',type=Path,default=workspace_paths.knowledge_of(ROOT))
     parser.add_argument('--web-root',type=Path,default=ROOT/'frontend/dist')
     args=parser.parse_args()
+    with service_instance(args.data_dir.resolve()) as instance:
+        if instance.url:
+            print('本项目已在运行：'+instance.url)
+            return
+        serve(args, instance)
+
+
+def serve(args, instance):
     from backend.knowledge_packages import load
     load(args.seed_root, ROOT)
     if not 1024<=args.port<=65535:
-        parser.error('端口应在1024至65535之间')
+        raise ValueError('端口应在1024至65535之间')
     directory=args.data_dir.resolve()
     directory.mkdir(parents=True,exist_ok=True)
     dist=args.web_root.resolve()
@@ -39,11 +48,12 @@ def main():
         restart_requested=True
         server.should_exit=True
     app.state.service_control.restart=restart
+    instance.publish(args.port)
     server.run()
     if restart_requested:
         # Uvicorn has drained requests and completed runtime.close() at this point.
         # Re-exec the same interpreter and exact launcher arguments to load new code.
-        os.execv(sys.executable,[sys.executable,str(Path(__file__).resolve()),*sys.argv[1:]])
+        exec_restart(sys.executable,[sys.executable,str(Path(__file__).resolve()),*sys.argv[1:]],dict(os.environ))
 
 
 if __name__=='__main__':

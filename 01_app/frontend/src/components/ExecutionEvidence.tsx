@@ -63,9 +63,9 @@ export default function ExecutionEvidence({board,company,onSession}:{board:strin
  },[board,company,reload,archived,page]);
  return <section className="session-evidence-list"><div className="audit-heading"><p>按会话查看法规条款、案例、历史公告和模板。</p><div><Checkbox checked={archived} onChange={e=>{setArchived(e.target.checked);setPage(1);}}>已归档会话</Checkbox><Button onClick={()=>setReload(n=>n+1)} loading={loading}>刷新</Button></div></div>
   {error&&<Alert type="error" message={error}/>}
-  <Table<SessionRow> rowKey="id" dataSource={rows} loading={loading} pagination={{current:page,pageSize:20,total,onChange:setPage,showSizeChanger:false}} columns={[
-   {title:'会话',dataIndex:'title',render:(title,r)=><Button type="link" className="evidence-title-button" onClick={()=>setSelected(r)}>{title}</Button>},
-   {title:'最近状态',dataIndex:'status',width:120,render:s=>runLabels[s]||'尚未执行'},
+  <Table<SessionRow> className="compact-library-table compact-operational-table" size="small" tableLayout="fixed" scroll={{x:760}} rowKey="id" dataSource={rows} loading={loading} pagination={{current:page,pageSize:20,total,onChange:setPage,showSizeChanger:false}} columns={[
+   {title:'会话',dataIndex:'title',render:(title,r)=><Button type="link" title={title} className="text-link operational-record-link" onClick={()=>setSelected(r)}><span className="record-title">{title}</span></Button>},
+   {title:'最近状态',dataIndex:'status',width:140,render:s=>runLabels[s]||'尚未执行'},
    {title:'更新时间',dataIndex:'updated',width:175,render:t=>new Date(t*1000).toLocaleString('zh-CN')},
    {title:'依据',width:110,render:(_,r)=><Button type="link" onClick={()=>setSelected(r)}>查看依据</Button>}
   ]} locale={{emptyText:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无会话执行记录"/>}}/>

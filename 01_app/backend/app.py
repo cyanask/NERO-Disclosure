@@ -31,14 +31,6 @@ def create_app(data_dir=None, seed_root=None, auth_config=None, pi_config=None, 
     security = Security(auth_config or {}, store)
     app = FastAPI(title='信息披露-AI辅助系统', docs_url=None, redoc_url=None)
 
-    @app.middleware('http')
-    async def add_nocache_headers(request: Request, call_next):
-        response = await call_next(request)
-        if request.url.path.endswith('.html') or request.url.path.endswith('.js') or request.url.path == '/':
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-        return response
     app.state.store, app.state.security = store, security
 
     @app.exception_handler(WordDeliveryError)
@@ -66,13 +58,20 @@ def create_app(data_dir=None, seed_root=None, auth_config=None, pi_config=None, 
                     if received>limit:return JSONResponse(status_code=413,content={'detail':'请求过大'})
                     chunks.append(chunk)
                 request._body=b''.join(chunks)
-            response = await call_next(request)
-            response.headers['Cache-Control'] = 'no-store'
-            response.headers['X-Content-Type-Options'] = 'nosniff'
-            response.headers['X-Frame-Options'] = 'DENY'
-            return response
+            return await call_next(request)
         except HTTPException as exc:
             return JSONResponse(status_code=exc.status_code, content={'detail':exc.detail})
+
+    @app.middleware('http')
+    async def response_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        if request.url.path.endswith('.html') or request.url.path.endswith('.js') or request.url.path == '/':
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
 
     def stale_stage(event):
         """只读检查：返回需要重新核对的起始阶段，None 表示当前状态仍有效。"""

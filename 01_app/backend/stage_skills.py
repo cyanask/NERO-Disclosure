@@ -47,3 +47,38 @@ def read_method(root,stage,section):
 
 def catalog(root):
     return [{k:v for k,v in get(root,stage).items() if k not in ('instructions','references')} for stage in ('assessment','plan','template','draft')]
+
+
+def available(root):
+    """Compact discovery metadata; detailed methods are loaded only when selected."""
+    try:
+        registry=json.loads((app_of(root)/'skills/registry.json').read_text('utf-8'))
+    except (OSError,ValueError):
+        return [{'status':'unavailable','reason':'项目 Skill 注册表不可读取'}]
+    rows={}
+    for section in ('methods','stages'):
+        for key,spec in registry.get(section,{}).items():
+            identity=spec['id']
+            if identity in rows:
+                rows[identity]['uses'].append(key)
+                continue
+            row={'id':identity,'title':spec.get('title',identity),'purpose':spec.get('description',''),
+                 'version':spec['version'],'uses':[key],'entry_tool':'load_business_skill'}
+            try:
+                read_method(root,key,section)
+                row['status']='registered'
+            except HTTPException as exc:
+                row.update(status='unavailable',reason=exc.detail)
+            rows[identity]=row
+    return list(rows.values())
+
+
+def by_id(root,identity):
+    try:
+        registry=json.loads((app_of(root)/'skills/registry.json').read_text('utf-8'))
+        for section in ('methods','stages'):
+            for key,spec in registry.get(section,{}).items():
+                if spec['id']==identity:return read_method(root,key,section)
+    except (OSError,ValueError,KeyError,TypeError):
+        raise HTTPException(409,'项目 Skill 注册表不可读取') from None
+    raise HTTPException(404,'Skill 未登记，请从业务能力目录选择实际编号')

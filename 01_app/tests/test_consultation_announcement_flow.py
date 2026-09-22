@@ -30,8 +30,8 @@ def write_announcement(runtime, *,expected_consult=None, text=ANNOUNCEMENT_TEXT)
         routed=bridge('route_request',{'domain':'disclosure','intent':'announcement','reason':'用户开始拟公告'})
         assert routed['next_context']['stage']=='document_preflight'
         names=[t['name'] for t in routed['next_context']['tools']]
-        assert 'assess_document_readiness' in names and 'save_announcement' not in names
-        assert '信披咨询' in routed['next_context']['system']
+        assert 'assess_document_readiness' in names and 'save_announcement' in names
+        assert 'name: disclosure-announcement-drafting' in routed['next_context']['system']
         ctx=bridge('read_document_context',{})['data']
         if expected_consult:assert ctx['latest_consultation']['run_id']==expected_consult
         selected=next(t for t in ctx['templates'] if t.get('kind')=='related_transaction')

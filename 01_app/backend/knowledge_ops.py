@@ -14,33 +14,29 @@ S={'type':'string'};I={'type':'integer','minimum':0}
 COL={'type':'string','enum':['laws','cases','blacklist_cases','profiles']}
 
 
-def tools(intent):
+def tools(intent=None):
     result=[spec('search','查询当前板块知识库，返回候选和来源状态。',{'collection':COL,'query':S},['collection','query']),
             spec('read','读取具体条目、内容模板及原件定位。',{'item_id':S},['item_id'])]
-    if intent in ('query','refresh','template'):
-        result += [spec('web_search','在互联网检索新法规、公告格式及公开披露案例。仅用公开关键词，不发送未公开事项细节。',{'query':S},['query']),
-          spec('download','下载官方PDF或HTML原件并登记哈希，提取页级正文；下载不等于已入库。',{'url':S},['url']),
-          spec('download_read','读取本轮下载原件的指定页和分段；无文本时提示需OCR。',{'download_id':S,'page':{'type':'integer','minimum':1},'offset':I},['download_id','page'])]
-    if intent in ('edit','delete','refresh','template'):
-        result += [spec('propose','准备具体知识变更，在对话中展示对象、内容和引用影响；用户核对后写入。items按当前条目结构填写，制作模板需给出新profile章节、字段、法源、参考案例和layout_profile_id。',
-             {'operation':{'type':'string','enum':['edit','delete','admit','template']},'collection':COL,'ids':{'type':'array','items':S},
-              'items':{'type':'array','items':{'type':'object','additionalProperties':True}},'download_id':S,'summary':S},['operation','collection','summary'])]
+    result += [spec('web_search','在互联网检索新法规、公告格式及公开披露案例。仅用公开关键词，不发送未公开事项细节。',{'query':S},['query']),
+      spec('download','下载公开HTTPS来源的PDF或HTML原件并登记哈希，提取页级正文；不限域名。下载不代表来源权威、内容已核实或已入库，优先查找发文机构原文。',{'url':S},['url']),
+      spec('download_read','读取本轮下载原件的指定页和分段；无文本时提示需OCR。',{'download_id':S,'page':{'type':'integer','minimum':1},'offset':I},['download_id','page'])]
+    result += [spec('propose','准备具体知识变更，在对话中展示对象、内容和引用影响；用户核对后写入。items按当前条目结构填写，制作模板需给出新profile章节、字段、法源、参考案例和layout_profile_id。',
+         {'operation':{'type':'string','enum':['edit','delete','admit','template']},'collection':COL,'ids':{'type':'array','items':S},
+          'items':{'type':'array','items':{'type':'object','additionalProperties':True}},'download_id':S,'summary':S},['operation','collection','summary'])]
     result += [spec('imports','列出本轮公司可继续处理的上传/下载文件。',{},[]),spec('history','读取本轮公司历史公告及公告时间表；无公司范围时不能查询。',{'query':S,'item_id':S,'page':{'type':'integer','minimum':1},'offset':I},[]),
                spec('import_read','读取用户上传或本轮下载文件的结构、字段及指定页正文。',{'import_id':S,'page':{'type':'integer','minimum':1}},['import_id'])]
-    if intent in ('refresh','template'):
-        result += [spec('import_url','下载官方文件并完成结构抽取，按本轮公司隔离历史公告。',{'url':S,'collection':{'type':'string','enum':['laws','cases','blacklist_cases','history','profiles']}},['url','collection']),
-                   spec('import_propose','提交上传/下载文件的入库元数据，待用户核对；禁止重写原文或伪造发布确认。',{'import_id':S,'metadata':{'type':'object','additionalProperties':True},'summary':S},['import_id','metadata','summary'])]
-        result += [spec('import_batch_propose','同一资料库的多份文件集中预览、一次确认。中途失败保留已完成清单，可继续剩余文件。',{'imports':{'type':'array','minItems':1,'maxItems':200,'items':{'type':'object','properties':{'import_id':S,'metadata':{'type':'object','additionalProperties':True}},'required':['import_id','metadata'],'additionalProperties':False}},'summary':S},['imports','summary'])]
-    if intent=='template':result += [spec('template_replace','使用用户上传原文件替换指定模板，先展示版本影响。',{'import_id':S,'profile_id':S},['import_id','profile_id'])]
-    if intent=='delete':result += [spec('delete_prepare','后台确定当前范围的删除清单及引用影响，用户确认后执行。',{'collection':{'type':'string','enum':['laws','cases','blacklist_cases','history','profiles']},'ids':{'type':'array','items':S}},['collection','ids'])]
+    result += [spec('import_url','下载官方文件并完成结构抽取，按本轮公司隔离历史公告。',{'url':S,'collection':{'type':'string','enum':['laws','cases','blacklist_cases','history','profiles']}},['url','collection']),
+               spec('import_propose','提交上传/下载文件的入库元数据，待用户核对；禁止重写原文或伪造发布确认。',{'import_id':S,'metadata':{'type':'object','additionalProperties':True},'summary':S},['import_id','metadata','summary'])]
+    result += [spec('import_batch_propose','同一资料库的多份文件集中预览、一次确认。中途失败保留已完成清单，可继续剩余文件。',{'imports':{'type':'array','minItems':1,'maxItems':200,'items':{'type':'object','properties':{'import_id':S,'metadata':{'type':'object','additionalProperties':True}},'required':['import_id','metadata'],'additionalProperties':False}},'summary':S},['imports','summary'])]
+    result += [spec('template_replace','使用用户上传原文件替换指定模板，先展示版本影响。',{'import_id':S,'profile_id':S},['import_id','profile_id'])]
+    result += [spec('delete_prepare','后台确定当前范围的删除清单及引用影响，用户确认后执行。',{'collection':{'type':'string','enum':['laws','cases','blacklist_cases','history','profiles']},'ids':{'type':'array','items':S}},['collection','ids'])]
     return result
 
 
 
 def prepare(runtime,rid,args):
     run=runtime.store.run(rid);op=args.get('operation');collection=args.get('collection');board=run['board']
-    allowed={'edit':('edit',),'delete':('delete',),'refresh':('admit','edit'),'template':('admit','template')}
-    if op not in allowed.get(run.get('intent'),()):raise HTTPException(403,'当前意图不授予这项知识写操作')
+    if op not in ('edit','delete','admit','template'):raise HTTPException(422,'知识变更操作无效')
     state=library_admin.state(runtime.root,collection,board)
     items=copy.deepcopy(args.get('items') or [])
     if not isinstance(items,list) or len(items)>200 or any(not isinstance(x,dict) for x in items):raise HTTPException(422,'知识变更内容结构无效')
@@ -111,10 +107,12 @@ def prepare(runtime,rid,args):
 
 def authorize(runtime,rid,name):
     run=runtime.store.run(rid)
-    research=run.get('intent_domain')=='disclosure' and run['stage'] in ('chat','assessment','plan','document','announcement') and name in ('knowledge_web_search','knowledge_download','knowledge_download_read')
-    if (run.get('intent_domain')!='knowledge' and not research) or run.get('outcome'):raise HTTPException(403,'当前没有知识库工具权限')
-    definitions={x['name'] for x in tools('refresh' if research else run['intent'])}
-    if name not in definitions:raise HTTPException(403,'知识库操作超出当前意图')
+    if run.get('outcome'):raise HTTPException(409,'本轮已到结束或人工确认边界')
+    if run['stage'] in ('company_lookup','classification'):raise HTTPException(403,'专用核实任务不能修改知识库')
+    if run['stage']=='lifecycle' and name not in ('knowledge_search','knowledge_read','knowledge_web_search','knowledge_download','knowledge_download_read'):
+        raise HTTPException(403,'法规核验任务仅可读取依据并登记核验结果')
+    definitions={x['name'] for x in tools()}
+    if name not in definitions:raise HTTPException(403,'知识库操作超出当前业务范围')
     return run
 
 def execute(runtime,rid,name,args):

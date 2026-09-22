@@ -36,8 +36,19 @@ def replay_projection(runtime, previous, messages):
                     unverified.add(text)
             if len(rows)<1000:break
             cursor=rows[-1]['seq']
+    # Retire only the old host-routing calls from the replay view. The original
+    # journal/checkpoint stays untouched, as do all user and business records.
+    retired={block.get('id') for message in messages if message.get('role')=='assistant'
+             for block in message.get('content',[]) if isinstance(block,dict)
+             and block.get('type')=='toolCall' and block.get('name')=='route_request'}
     projected=[];repair_reply=False
     for message in messages:
+        if message.get('role')=='toolResult' and message.get('toolCallId') in retired:continue
+        if message.get('role')=='assistant' and isinstance(message.get('content'),list):
+            content=[b for b in message['content'] if not (isinstance(b,dict) and b.get('type')=='toolCall' and b.get('name')=='route_request')]
+            if len(content)!=len(message['content']):
+                if not any(isinstance(b,dict) and b.get('type') in ('text','toolCall') for b in content):continue
+                message={**message,'content':content}
         text=text_of(message)
         if message['role']=='user':
             purpose=message.get('runtime_control')

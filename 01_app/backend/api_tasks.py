@@ -2,7 +2,6 @@
 import copy
 import hashlib
 from fastapi import HTTPException, Request
-from sqlalchemy import text
 from . import models as m, agent_models as am, agent_tasks as tasks, gates, library
 from . import disclosure_contract as contract
 from .boards import require_board
@@ -100,10 +99,9 @@ def mount(app,ctx,load,read_event):
         if board is not None: require_board(board)
         ctx.security.actor(request)
         with ctx.store.read() as conn:
-            ids=conn.execute(text('SELECT id FROM events ORDER BY rowid DESC')).scalars().all()
-            layers={i:(ctx.store.get(conn,i) or {}).get('layer') for i in ids}
+            ids=ctx.store.event_ids(conn, board=board)
         return [{'event_id':event['id'],'event_title':event['title'],'event_revision':event['revision'],**task}
-                for event in [tasks.project_event(read_event(i)) for i in ids if board is None or layers[i]==board]
+                for event in [tasks.project_event(read_event(i)) for i in ids]
                 for task in reversed(event.get('agent_tasks',[]))]
 
     def task_create(event_id: str,payload: am.TaskCreate,request: Request):
@@ -113,9 +111,6 @@ def mount(app,ctx,load,read_event):
         actor=ctx.security.actor(request)
         event=read_event(event_id)
         return tasks.context(event,tasks.get_task(event,task_id),actor,ctx.seeds)
-
-    def task_claim(event_id: str,task_id: str,payload: am.Claim,request: Request):
-        return task_write(event_id,task_id,'claim',payload,request)
 
     def task_heartbeat(event_id: str,task_id: str,payload: am.Lease,request: Request):
         return task_write(event_id,task_id,'heartbeat',payload,request)
@@ -163,7 +158,7 @@ def mount(app,ctx,load,read_event):
             if args.collection=='client_history':
                 from .announcement_history import search as history_search
                 return history_search(ctx.root,event,args.query,args.offset,args.limit)
-            if args.collection in ('client_history','client_materials'):
+            if args.collection=='client_materials':
                 return {'scope_ref':contract.scope(event),**contract.capabilities()[args.collection], 'items':[], 'not_found_is_absence':False}
             snapshot=task['snapshot']['event']
             as_of=snapshot['facts'].get('assessment_as_of') or snapshot['facts'].get('event_date') or snapshot['created_at'][:10]

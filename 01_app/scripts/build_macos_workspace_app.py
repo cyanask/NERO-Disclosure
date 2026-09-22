@@ -12,7 +12,7 @@ from scripts.portable_runtime import platform_key, check_python
 from scripts.build_macos_release import icon, VERSION
 
 
-def build(output):
+def build(output, build_number):
     import json
     key = platform_key()
     base = APP/'runtime/portable'/key
@@ -37,10 +37,10 @@ def build(output):
     work = output.parent/(output.stem+'-icon-build');work.mkdir()
     icon(output,work)
     shutil.copy2(APP/'native/macos/brand.json',resources/'brand.json')
-    info = {'CFBundleIdentifier':'cn.nero.disclosure.workspace','CFBundleName':'NERO 信披系统',
-            'CFBundleDisplayName':'NERO 信披系统','CFBundleExecutable':'NERO Disclosure',
+    info = {'CFBundleIdentifier':'cn.nero.disclosure.workspace','CFBundleName':'Nero Disclosure',
+            'CFBundleDisplayName':'Nero Disclosure','CFBundleExecutable':'NERO Disclosure',
             'CFBundlePackageType':'APPL','CFBundleShortVersionString':VERSION,
-            'CFBundleVersion':'2026091703','LSMinimumSystemVersion':'13.5',
+            'CFBundleVersion':build_number,'LSMinimumSystemVersion':'13.5',
             'CFBundleIconFile':'AppIcon.icns','NSHighResolutionCapable':True,
             'NSPrincipalClass':'NSApplication','NEROBuildConfiguration':'Release',
             'NEROWorkspaceRoot':str(APP.parent),'NEROWorkspacePython':str(python)}
@@ -53,4 +53,6 @@ def build(output):
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(description='正式构建本机工作区应用入口，不制作迁移安装包')
     parser.add_argument('--output',type=Path,required=True)
-    build(parser.parse_args().output)
+    parser.add_argument('--build-number',required=True)
+    args=parser.parse_args()
+    build(args.output,args.build_number)

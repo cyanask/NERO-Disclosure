@@ -7,7 +7,7 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "test": "node --test worker.test.mjs provider_catalog.test.mjs provider_transport.test.mjs conversation_context.test.mjs"
+    "test": "node --test worker.test.mjs provider_catalog.test.mjs provider_transport.test.mjs conversation_context.test.mjs trial_completion.test.mjs trial_worker_flow.test.mjs"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.85.1",

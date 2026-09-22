@@ -6,12 +6,52 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { AssistantMessageEventStream, registerSessionResourceCleanup } from '@earendil-works/pi-ai';
-import { execute } from './worker.mjs';
+import { execute, executionErrorMessage } from './worker.mjs';
 import { brokerOptions, BROKER_PROVIDER, BROKER_BASE_URL } from './broker_compat.mjs';
-import { createWorkflowCompactor } from './workflow_context.mjs';
 
 const model={id:'offline-fixture',provider:'fixture',api:'openai-completions',name:'Offline fixture',baseUrl:'http://127.0.0.1:1',reasoning:false,input:['text'],contextWindow:128000,maxTokens:1024,cost:{input:0,output:0,cacheRead:0,cacheWrite:0}};
 const packet={model,system:'仅离线接口测试',history:[],prompt:'测试公开事件',apiKey:'fixture-key',tools:[],session_id:'test'};
+
+test('public errors never expose arbitrary provider details',()=>{assert.doesNotMatch(executionErrorMessage(new Error('PRIVATE_DETAIL')),/PRIVATE_DETAIL/);});
+
+for (const attempts of [4, 12]) {
+ test(`consultation evidence repair can reach submission ${attempts} without a business-candidate quota`,async()=>{
+  const events=[],submitted=[];let rounds=0;
+  await execute({...packet,stage:'chat',requires_result:true,tools:[fixtureTool('submit_consultation')]},e=>events.push(e),async(id,name)=>{
+   submitted.push(name);
+   return submitted.length<attempts
+    ? {data:{status:'repair_evidence',issues:[{reason:'离线样本：本次仍须修正依据'}]}}
+    : {data:{status:'completed'},terminate:true};
+  },(m,ctx,opts)=>{
+   rounds++;
+   // Stop the fake provider after the planned sequence so a regression cannot
+   // spin forever when an intercepted tool call never reaches the bridge.
+   if(rounds>attempts)return stream([{type:'text',text:'离线样本仍未获得登记结果'}])(m,ctx,opts);
+   return stream([{type:'toolCall',id:'consult-'+rounds,name:'submit_consultation',arguments:{}}],'toolUse')(m,ctx,opts);
+  });
+  assert.equal(submitted.length,attempts);
+  assert.equal(events.at(-1).type,'done');
+  assert.notEqual(events.at(-1).completion_complete,false);
+ });
+}
+
+test('rejected drafts can keep repairing until the user cancels',async()=>{
+ const events=[];let submitted=0;const cancel=new AbortController();
+ await assert.rejects(execute({...packet,stage:'chat',requires_result:true,tools:[fixtureTool('submit_consultation')]},e=>events.push(e),async()=>{
+  if(++submitted===15)cancel.abort();return {data:{status:'repair_evidence'}};
+ },(m,c,o)=>stream([{type:'toolCall',id:'repair-'+submitted,name:'submit_consultation',arguments:{}}],'toolUse')(m,c,o),cancel.signal),/Cancelled/);
+ assert.equal(submitted,15);assert.ok(!events.some(e=>e.type==='done'));
+});
+
+test('consultation prose answer completes without a forced submission',async()=>{
+ const events=[];let rounds=0;
+ await execute({...packet,stage:'chat',requires_result:false,tools:[fixtureTool('submit_consultation')]},e=>events.push(e),()=>assert.fail('consultation must not be forced into a tool call'),(m,ctx,opts)=>{
+  rounds++;return stream([{type:'text',text:'咨询答复可直接展示，依据登记由主控自行判断。'}])(m,ctx,opts);
+ });
+ assert.equal(rounds,1);
+ assert.ok(!events.some(e=>e.type==='completion_repair_started'));
+ assert.equal(events.at(-1).type,'done');
+});
 
 test('preflight recovery uses current tools and reaches one waiting-user boundary',async()=>{
  const events=[],calls=[];let round=0;
@@ -60,7 +100,7 @@ test('provider failure cannot produce successful done receipt',async()=>{
 test('selected max effort reaches the real Pi stream options without downgrade',async()=>{
  const events=[];let observed;
  await execute({...packet,reasoning_effort:'max',model:{...model,reasoning:true,thinkingLevelMap:{low:'low',medium:'medium',high:'high',xhigh:'xhigh',max:'max'}}},e=>events.push(e),()=>assert.fail(),(m,context,options)=>{observed=options;return stream([{type:'text',text:'ok'}])(m,context,options);});
- assert.equal(observed.reasoning,'max');assert.equal(observed.maxRetries,0);assert.equal(events[0].reasoning_effort,'max');
+ assert.equal(observed.reasoning,'max');assert.equal(observed.maxRetries,undefined);assert.equal(events[0].reasoning_effort,'max');
 });
 test('tool errors propagate into Pi follow-up without successful tool receipt',async()=>{
  let rounds=0;const events=[];
@@ -182,7 +222,7 @@ test('session resources are cleaned on both successful and failed provider calls
  }
 });
 
-test('routing uses the small budget and business plus final answer keep selected effort',async()=>{
+test('routing, business and final answer all keep selected effort and output budget',async()=>{
  const events=[],options=[];let rounds=0;
  const route=fixtureTool('route_request'),submit=fixtureTool('submit_candidate');
  await execute({...packet,routeFirst:true,requires_result:false,reasoning_effort:'max',maxTokens:12000,routing_reasoning_effort:'low',routing_max_tokens:900,tools:[route]},e=>events.push(e),async(id,name)=>name==='route_request'?{
@@ -191,7 +231,7 @@ test('routing uses the small budget and business plus final answer keep selected
   options.push(opts);rounds++;
   return stream(rounds<3?[{type:'toolCall',id:'c'+rounds,name:rounds===1?'route_request':'submit_candidate',arguments:{}}]:[{type:'text',text:'已登记，待人工确认'}],rounds<3?'toolUse':'stop')(m,ctx,opts);
  });
- assert.deepEqual(options.map(o=>[o.reasoning,o.maxTokens]),[['low',900],['max',12000],['max',12000]]);
+ assert.deepEqual(options.map(o=>[o.reasoning,o.maxTokens]),[['max',12000],['max',12000],['max',12000]]);
  assert.ok(events.filter(e=>['started','phase_started'].includes(e.type)).every(e=>e.reasoning_effort==='max'));
  const starts=events.filter(e=>e.type==='model_call_started'),ends=events.filter(e=>e.type==='model_call_finished');
  assert.deepEqual(starts.map(e=>e.phase),['routing','working','final']);
@@ -199,16 +239,12 @@ test('routing uses the small budget and business plus final answer keep selected
  assert.ok(ends.every(e=>e.elapsed_ms>=0&&e.usage.totalTokens===20&&!('cost' in e.usage)));
 });
 
-test('business prose without a submitted result gets only two repairs and an incomplete receipt',async()=>{
+test('completion repairs continue beyond both former caps and can succeed',async()=>{
  const events=[];let rounds=0;
- await execute({...packet,stage:'assessment',requires_result:true,tools:[fixtureTool('submit_candidate'),fixtureTool('request_information')]},e=>events.push(e),()=>assert.fail(),(m,ctx,opts)=>{
-  rounds++;return stream([{type:'text',text:'PROSE_RETAINED_WITHOUT_RESULT'}])(m,ctx,opts);
+ await execute({...packet,stage:'assessment',requires_result:true,tools:[fixtureTool('submit_candidate')]},e=>events.push(e),async()=>({data:{saved:true},terminate:true}),(m,c,o)=>{
+  rounds++;return stream(rounds<=12?[{type:'text',text:'still working'}]:[{type:'toolCall',id:'save',name:'submit_candidate',arguments:{}}],rounds<=12?'stop':'toolUse')(m,c,o);
  });
- assert.equal(rounds,3);assert.equal(events.filter(e=>e.type==='started').length,1);
- assert.equal(events.filter(e=>e.type==='completion_repair_started').length,2);
- assert.equal(events.filter(e=>e.type==='assistant'&&e.text==='PROSE_RETAINED_WITHOUT_RESULT').length,3);
- assert.equal(events.at(-3).type,'completion_incomplete');assert.equal(events.at(-2).type,'session_cleanup');assert.equal(events.at(-1).completion_complete,false);
- assert.ok(!events.some(e=>e.type==='finalization_started'));
+ assert.equal(rounds,13);assert.equal(events.filter(e=>e.type==='completion_repair_started').length,12);assert.equal(events.at(-1).type,'done');
 });
 
 test('correction can submit a result and advance through successive scoped nodes',async()=>{
@@ -240,7 +276,7 @@ test('request information and other authoritative gates stop without correction 
   await execute({...packet,stage:'assessment',requires_result:true,tools:[fixtureTool(name),fixtureTool('submit_candidate')]},e=>events.push(e),async(id,tool)=>{calls.push(tool);return {data:{status:'waiting'},terminate:true};},(m,ctx,opts)=>{
    rounds++;return stream([{type:'toolCall',id:'g',name,arguments:{}},{type:'toolCall',id:'s',name:'submit_candidate',arguments:{}}],'toolUse')(m,ctx,opts);
   });
-  assert.equal(rounds,1);assert.deepEqual(calls,[name]);
+  assert.equal(rounds,1);assert.deepEqual(calls,[name,'submit_candidate']);
   assert.ok(!events.some(e=>e.type==='completion_repair_started'));assert.equal(events.at(-1).type,'done');
  }
 });
@@ -257,19 +293,14 @@ test('provider stream rejection closes its timing event and releases session res
  } finally {unregister();}
 });
 
-test('a node transition blocks remaining old-node tools in the same model batch',async()=>{
- const events=[],calls=[];let rounds=0;
- await execute({...packet,stage:'assessment',requires_result:true,tools:[fixtureTool('submit_candidate'),fixtureTool('old_node_read')]},e=>events.push(e),async(id,name)=>{
-  calls.push(name);
-  return name==='submit_candidate'?{data:{saved:true},next_context:{system:'draft',system_sha256:'draft-hash',stage:'draft',requires_result:true,tools:[fixtureTool('request_information')]}}
-   :{data:{status:'waiting'},terminate:true};
- },(m,ctx,opts)=>{
-  rounds++;
-  return stream(rounds===1?[{type:'toolCall',id:'s',name:'submit_candidate',arguments:{}},{type:'toolCall',id:'old',name:'old_node_read',arguments:{}}]
-   :[{type:'toolCall',id:'i',name:'request_information',arguments:{}}],'toolUse')(m,ctx,opts);
- });
- assert.equal(rounds,2);assert.deepEqual(calls,['submit_candidate','request_information']);
- assert.equal(events.at(-1).type,'done');
+test('native Pi starts independent tools in parallel',async()=>{
+ let release;const together=new Promise(r=>{release=r;});const calls=[];let rounds=0;
+ await execute({...packet,tools:[fixtureTool('read_a'),fixtureTool('read_b')]},()=>{},async(id,name)=>{
+  calls.push(name);if(calls.length===2)release();
+  await Promise.race([together,new Promise((_,reject)=>{const timer=setTimeout(()=>reject(new Error('tools ran serially')),1000);timer.unref();})]);
+  return {data:{source:name}};
+ },(m,c,o)=>stream(++rounds===1?[{type:'toolCall',id:'a',name:'read_a',arguments:{}},{type:'toolCall',id:'b',name:'read_b',arguments:{}}]:[{type:'text',text:'done'}],rounds===1?'toolUse':'stop')(m,c,o));
+ assert.deepEqual(calls,['read_a','read_b']);
 });
 
 test('four business stages can each submit and only the final stage closes',async()=>{
@@ -286,14 +317,12 @@ test('four business stages can each submit and only the final stage closes',asyn
  assert.equal(events.filter(e=>e.type==='finalization_started').length,1);assert.equal(events.at(-1).type,'done');
 });
 
-test('same-named stage contexts cannot reset the three-submission cap',async()=>{
- const submit=fixtureTool('submit_candidate');let calls=0,rounds=0;
- await assert.rejects(execute({...packet,stage:'assessment',requires_result:true,tools:[submit]},()=>{},async()=>{
-  calls++;return {data:{saved:false},next_context:{system:'assessment',system_sha256:'hash',stage:'assessment',requires_result:true,tools:[submit]}};
- },(m,ctx,opts)=>{
-  rounds++;return stream(rounds<=4?[{type:'toolCall',id:'s'+rounds,name:'submit_candidate',arguments:{}}]:[{type:'text',text:'不能继续提交'}],rounds<=4?'toolUse':'stop')(m,ctx,opts);
- }),/Tool call limit reached/);
- assert.equal(calls,3);
+test('candidate repair and context transitions continue past 3, 4 and 10',async()=>{
+ const submit=fixtureTool('submit_candidate');let calls=0;
+ await execute({...packet,stage:'assessment',requires_result:true,tools:[submit]},()=>{},async()=>{
+  return ++calls<15?{data:{saved:false},next_context:{system:'assessment',stage:'assessment',requires_result:true,tools:[submit]}}:{data:{saved:true},terminate:true};
+ },(m,c,o)=>stream([{type:'toolCall',id:'s'+calls,name:'submit_candidate',arguments:{}}],'toolUse')(m,c,o));
+ assert.equal(calls,15);
 });
 
 test('the worker clears a long-lived session timer before exiting after done',async()=>{
@@ -331,32 +360,25 @@ test('cleanup failure cannot emit done after either a complete or incomplete rou
  }
 });
 
-test('unfinished routing gets two route-only reminders even without a business result requirement',async()=>{
- const events=[];let rounds=0;
- await execute({...packet,routeFirst:true,requires_result:false,tools:[fixtureTool('route_request')]},e=>events.push(e),()=>assert.fail(),(m,ctx,opts)=>{
-  rounds++;
-  if(rounds>1){
-   const reminder=ctx.messages.at(-1).content;
-   const text=typeof reminder==='string'?reminder:JSON.stringify(reminder);
-   assert.ok(text.includes('route_request'));assert.ok(!text.includes('submit_candidate'));
-  }
-  return stream([{type:'text',text:'UNROUTED_TEXT'},{type:'thinking',thinking:'PRIVATE_ROUTING_THINKING'}])(m,ctx,opts);
- });
- assert.equal(rounds,3);assert.equal(events.filter(e=>e.type==='completion_repair_started'&&e.phase==='routing').length,2);
- assert.ok(events.some(e=>e.type==='completion_incomplete'&&e.phase==='routing'));assert.equal(events.at(-1).completion_complete,false);
- assert.ok(!JSON.stringify(events).includes('UNROUTED_TEXT'));assert.ok(!JSON.stringify(events).includes('PRIVATE_ROUTING_THINKING'));
+test('routing repairs have no fixed cap and remain cancellable',async()=>{
+ const events=[];let rounds=0;const cancel=new AbortController();
+ await assert.rejects(execute({...packet,routeFirst:true,tools:[fixtureTool('route_request')]},e=>events.push(e),()=>assert.fail(),(m,c,o)=>{
+  if(++rounds===12)cancel.abort();
+  return stream([{type:'text',text:'UNROUTED_TEXT'}])(m,c,o);
+ },cancel.signal),/Cancelled/);
+ assert.equal(rounds,12);assert.ok(!events.some(e=>e.type==='done'));assert.ok(!JSON.stringify(events).includes('UNROUTED_TEXT'));
 });
 
 test('Pi reports invalid arguments and unknown tools without exposing argument payloads',async()=>{
  const events=[];let rounds=0;
  const route={...fixtureTool('route_request'),parameters:{type:'object',properties:{domain:{type:'string'}},required:['domain'],additionalProperties:false}};
- await execute({...packet,routeFirst:true,requires_result:false,tools:[route]},e=>events.push(e),()=>assert.fail(),(m,ctx,opts)=>{
+ await execute({...packet,routeFirst:true,requires_result:false,tools:[route]},e=>events.push(e),async()=>({data:{},terminate:true}),(m,ctx,opts)=>{
   rounds++;
   return stream(rounds===1?[
    {type:'thinking',thinking:'PRIVATE_THINKING_SENTINEL'},
    {type:'toolCall',id:'invalid',name:'route_request',arguments:{headers:'PRIVATE_HEADERS_SENTINEL',thinking:'PRIVATE_ARGUMENT_SENTINEL'}},
    {type:'toolCall',id:'missing',name:'unknown_tool',arguments:{}},
-  ]:[{type:'text',text:'未分流'}],rounds===1?'toolUse':'stop')(m,ctx,opts);
+  ]:[{type:'toolCall',id:'valid',name:'route_request',arguments:{domain:'disclosure'}}],'toolUse')(m,ctx,opts);
  });
  const failures=events.filter(e=>e.type==='tool_validation_failed');
  assert.deepEqual(failures.map(e=>e.tool),['route_request','unknown_tool']);
@@ -365,7 +387,7 @@ test('Pi reports invalid arguments and unknown tools without exposing argument p
  assert.ok(!JSON.stringify(events).includes('PRIVATE_'));assert.ok(!JSON.stringify(failures).includes('Received arguments'));
 });
 
-test('revision keeps only the latest rejected candidate and stage handoff resets to authoritative context',async()=>{
+test('revision and stage handoff retain source text and all earlier drafts',async()=>{
  const events=[];let rounds=0,submissions=0;
  const submit={...fixtureTool('submit_candidate'),parameters:{type:'object',properties:{result:{type:'object',properties:{summary:{type:'string'}},required:['summary']}},required:['result']}};
  const read=fixtureTool('read_source');
@@ -381,25 +403,18 @@ test('revision keeps only the latest rejected candidate and stage handoff resets
   if([4,5,6].includes(rounds)){
    const serialized=JSON.stringify(ctx.messages);
    assert.ok(serialized.includes('ORIGINAL_TASK_RETAINED'));assert.ok(serialized.includes('ORIGINAL_CONSTRAINT_RETAINED'));
-   assert.ok(!serialized.includes('VERBATIM_SOURCE_DATA'));assert.ok(!serialized.includes('SOURCE_ORIGINAL'));
-   assert.ok(!serialized.includes('PRIVATE_COMPACT_THINKING'));assert.ok(!serialized.includes('REPEATED_FAILED_PROSE'));
-   if(rounds<6){
-    const payload=JSON.parse(ctx.messages.find(x=>x.content?.startsWith?.('【系统修订交接】')).content.split('\n').slice(1).join('\n'));
-    assert.equal(payload.candidate.result.summary,'CANDIDATE_'+(rounds-3));
-    assert.ok(JSON.stringify(payload.validation).includes('CHECK_ISSUE_'+(rounds-3)));
-    if(rounds===5)assert.ok(!serialized.includes('CANDIDATE_1'));
-   }else{
-    assert.equal(ctx.systemPrompt,'draft canonical upstream');
-    assert.ok(serialized.includes('【系统节点交接】'));
-    assert.ok(!serialized.includes('ACCEPTED_CANONICAL_RESULT'));
-   }
+   assert.ok(serialized.includes('VERBATIM_SOURCE_DATA'));assert.ok(serialized.includes('SOURCE_ORIGINAL'));
+   assert.ok(serialized.includes('REPEATED_FAILED_PROSE'));assert.ok(serialized.includes('CANDIDATE_1'));
+   if(rounds>=5)assert.ok(serialized.includes('CANDIDATE_2'));
+   if(rounds===6){assert.equal(ctx.systemPrompt,'draft canonical upstream');assert.ok(serialized.includes('ACCEPTED_CANONICAL_RESULT'));}
+
   }
   if(rounds===6)return stream([{type:'toolCall',id:'gate',name:'request_information',arguments:{}}],'toolUse')(m,ctx,opts);
   const name=rounds<=2?'read_source':'submit_candidate';
   return stream([{type:'thinking',thinking:'PRIVATE_COMPACT_THINKING'.repeat(100)},{type:'text',text:'REPEATED_FAILED_PROSE'},
    {type:'toolCall',id:'c'+rounds,name,arguments:name==='read_source'?{}:{result:{summary:'CANDIDATE_'+(rounds-2)}}}],'toolUse')(m,ctx,opts);
  });
- assert.equal(events.filter(e=>e.type==='context_compacted').length,3);
+ assert.equal(events.filter(e=>e.type==='context_compacted').length,0);
  assert.ok(events.filter(e=>e.type==='context_compacted').every(e=>e.before_chars>e.after_chars));
  assert.ok(!JSON.stringify(events).includes('PRIVATE_COMPACT_THINKING'));
  assert.equal(rounds,6);assert.equal(events.at(-1).type,'done');assert.ok(!events.some(e=>e.type==='completion_repair_started'));
@@ -415,10 +430,6 @@ test('workflow compaction is opt in and preserves legacy model context by defaul
  assert.ok(!events.some(e=>e.type==='context_compacted'));
 });
 
-test('compaction skips non-text evidence instead of dropping it',()=>{
- const compact=createWorkflowCompactor([{role:'user',content:'original task',timestamp:1}]);
- assert.equal(compact([{role:'toolResult',toolName:'read_source',toolCallId:'i',content:[{type:'image',data:'ORIGINAL_IMAGE_DATA',mimeType:'image/png'}]}]),undefined);
-});
 
 test('provider diagnostics retain error category and redact credentials plus provider payload fields',async()=>{
  const events=[];
@@ -480,14 +491,14 @@ test('a peer ignoring the WebSocket close frame cannot hold the completed worker
  }
 });
 
-test('closing summary has its own small budget while formal work retains selected max',async()=>{
+test('closing summary retains the same selected effort and output budget',async()=>{
  let rounds=0;const events=[],tool=fixtureTool('submit_candidate');
  await execute({...packet,reasoning_effort:'max',maxTokens:8192,closing_reasoning_effort:'low',closing_max_tokens:1024,tools:[tool]},e=>events.push(e),async()=>({data:{outcome:'waiting_approval'},terminate:true,finalize:true}),(m,ctx,opts)=>{
-  rounds++;assert.equal(opts.reasoning,rounds===1?'max':'low');assert.equal(opts.maxTokens,rounds===1?8192:1024);
+  rounds++;assert.equal(opts.reasoning,'max');assert.equal(opts.maxTokens,8192);
   if(rounds===2){assert.equal(ctx.tools.length,0);return stream([{type:'text',text:'正文已登记，等待人工确认。'}],'stop')(m,ctx,opts);}
   return stream([{type:'toolCall',id:'save',name:'submit_candidate',arguments:{}}],'toolUse')(m,ctx,opts);
  });
- assert.equal(rounds,2);assert.ok(events.some(e=>e.type==='model_call_finished'&&e.phase==='final'&&e.reasoning_effort==='low'));
+ assert.equal(rounds,2);assert.ok(events.some(e=>e.type==='model_call_finished'&&e.phase==='final'&&e.reasoning_effort==='max'));
 });
 
 
@@ -517,4 +528,16 @@ test('output defaults respect the model and preserve explicit request limits',as
   });
   assert.equal(limit,expected);
  }
+});
+
+test('provider request uses native retry defaults',async()=>{await execute(packet,()=>{},()=>assert.fail(),(m,c,o)=>{assert.equal(o.maxRetries,undefined);return stream([{type:'text',text:'ok'}])(m,c,o);});});
+
+test('external cancellation interrupts an immediately repeating tool loop',async()=>{
+ const cancel=new AbortController();let calls=0;
+ const timer=setTimeout(()=>cancel.abort(),20);
+ try {
+  await assert.rejects(execute({...packet,tools:[fixtureTool('read_source')]},()=>{},async()=>{calls++;return {data:{}};},
+   (m,c,o)=>stream([{type:'toolCall',id:'repeat-'+calls,name:'read_source',arguments:{}}],'toolUse')(m,c,o),cancel.signal),/Cancelled/);
+  assert.ok(calls>0);
+ } finally {clearTimeout(timer);}
 });

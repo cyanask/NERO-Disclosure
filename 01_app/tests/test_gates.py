@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from fastapi import HTTPException
 from backend.app import create_app
 from internal_workflow import CALLERS,install_callers,route as internal_route
 
@@ -103,6 +104,74 @@ def test_blocked_advance_is_audited_and_retry_keeps_status(gate_env):
     event=c.get('/api/events/'+e['id']).json()
     assert sum(a['action']=='advance_blocked' for a in event['audit'])==1
     assert event['stage']=='intake' and event['verification']['status']=='BLOCKED'
+
+
+def test_successful_advance_evaluates_once_and_replay_keeps_one_receipt(gate_env,monkeypatch):
+    from test_agent_tasks import candidate, claimed, submit
+    c,agent,_=gate_env;e=sample(c)
+    task,lease=claimed(c,e,agent)
+    assert submit(c,e,task,lease,agent,candidate()).status_code==200
+    assert command(c,e,f"agent-tasks/{task['id']}/adopt").status_code==200
+    current=c.get('/api/events/'+e['id']).json()
+    payload={'expected_revision':current['revision'],'stage':'assessment','request_id':str(uuid4())}
+    evaluations=[];advances=[]
+    original_evaluate=__import__('backend.api_gates',fromlist=['gates']).gates.evaluate
+    original_advance=__import__('backend.api_gates',fromlist=['gates']).gates.advance
+
+    def counted_evaluate(*args,**kwargs):
+        receipt=original_evaluate(*args,**kwargs);evaluations.append(receipt);return receipt
+
+    def counted_advance(*args,**kwargs):
+        advances.append(args[2]);return original_advance(*args,**kwargs)
+
+    monkeypatch.setattr('backend.api_gates.gates.evaluate',counted_evaluate)
+    monkeypatch.setattr('backend.api_gates.gates.advance',counted_advance)
+    url='/api/events/'+e['id']+'/advance'
+    first=c.post(url,json=payload);second=c.post(url,json=payload)
+    assert first.status_code==second.status_code==200
+    assert len(evaluations)==1 and len(advances)==1 and advances==['assessment']
+    assert first.json()==second.json()
+    saved=first.json();assert saved['verification']==saved['verified_stages']['assessment']
+    assert sum(row['action']=='advance' for row in saved['audit'])==1
+
+
+def test_pending_review_advance_is_recorded_as_blocked(gate_env,monkeypatch):
+    c,_,_=gate_env;e=sample(c);url='/api/events/'+e['id']+'/advance'
+    pending={'status':'PENDING_REVIEW','stage':'assessment','input_fingerprint':'0'*64,
+             'issues':[],'warnings':[],'semantic_review':[{'item_id':'fact:amount'}],
+             'next_action':{'action':'semantic_review'}}
+    monkeypatch.setattr('backend.api_gates.gates.evaluate',lambda *args,**kwargs:pending)
+    body={'expected_revision':e['revision'],'stage':'assessment','request_id':str(uuid4())}
+    response=c.post(url,json=body)
+    assert response.status_code==409 and response.json()['detail']['gate']['status']=='PENDING_REVIEW'
+    saved=c.get('/api/events/'+e['id']).json()
+    assert saved['verification']==pending
+    assert saved['stage']=='intake'
+    assert sum(row['action']=='advance_blocked' for row in saved['audit'])==1
+    assert saved['repair_attempts']
+
+
+def test_advance_rejects_stale_revision_and_forged_pass_field(gate_env):
+    c,_,_=gate_env;e=sample(c);url='/api/events/'+e['id']+'/advance'
+    stale={'expected_revision':e['revision'],'stage':'assessment','request_id':str(uuid4())}
+    changed=c.patch('/api/events/'+e['id'],json={'expected_revision':e['revision'],'summary':'模拟版本变化'}).json()
+    assert c.post(url,json=stale).status_code==409
+    forged={'expected_revision':changed['revision'],'stage':'assessment','request_id':str(uuid4()),'status':'PASS'}
+    assert c.post(url,json=forged).status_code==422
+
+
+def test_non_gate_409_from_advance_propagates_and_rolls_back(gate_env,monkeypatch):
+    c,_,_=gate_env;e=sample(c);before=c.get('/api/events/'+e['id']).json()
+    def reject(*args,**kwargs):
+        raise HTTPException(409,'模拟非 Gate 冲突')
+    monkeypatch.setattr('backend.api_gates.gates.advance',reject)
+    response=c.post('/api/events/'+e['id']+'/advance',json={
+        'expected_revision':before['revision'],'stage':'assessment','request_id':str(uuid4())})
+    assert response.status_code==409 and response.json()['detail']=='模拟非 Gate 冲突'
+    saved=c.get('/api/events/'+e['id']).json()
+    assert saved['revision']==before['revision']
+    assert not any(row['action']=='advance_blocked' for row in saved['audit'])
+    assert 'verification' not in saved and 'repair_attempts' not in saved
 
 
 def test_host_no_disclosure_cannot_downgrade_out_of_period_rule(gate_env):

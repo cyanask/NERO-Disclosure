@@ -27,7 +27,8 @@ def test_gemini_uses_existing_pi_and_sends_only_selected_profile(setup):
     c,runtime,_=setup;runtime.settings.gemini.model_ids=lambda:list(MODEL_IDS);connect(c)
     rows=[r for r in snapshot(c)['models'] if r['provider']==PROVIDER];packets=[]
     def runner(packet,emit,bridge,stop):
-        packets.append(packet);emit({'type':'started','engine':'pi-agent-core'});emit({'type':'assistant','text':'离线测试'});emit({'type':'done'})
+        packets.append(packet);emit({'type':'started','engine':'pi-agent-core'})
+        emit({'type':'assistant','message':0,'text':'离线测试','stopReason':'stop'});emit({'type':'done'})
     runtime.runner=runner;s,e=new_session(c)
     result,_=send(c,s,e,model_key=rows[0]['key']);done=settled(c,result)
     assert packets[0]['model']['id']==MODEL_IDS[0] and packets[0]['model']['api']=='openai-responses'

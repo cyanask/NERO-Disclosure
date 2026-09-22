@@ -2,7 +2,7 @@
 
 The controller judges applicability and interprets the current user message.
 This module binds that judgment, the visible gap notice and the later consent
-to the same documents, company and input version before write tools open.
+to the same documents, company and input version before saving.
 A document is named by title before its first save and by document id after it,
 so every comparison here resolves both forms to one identity.
 """
@@ -13,17 +13,17 @@ from . import document_store as store
 from .document_schema import obj
 from .document_context import context, previous, allowed
 
-VERSION = '1.0.2'
-GUIDE = '''起草行为合同：先核对，再决定是否起草。route_request只确定任务方向，不授予保存正文或生成Word的权限。
+VERSION = '1.0.3'
+GUIDE = '''起草行为合同：先核对，再决定是否起草。先阅读业务能力目录，按用户目标选择正文或Word；保存时核对具体文稿、用户要求和当前输入。
 先读取当前资料、适用规则及模板，复用已有内容要求，按本次文种检查主体、事项、时间、金额、程序、条件和必要附件；未适用的主题说明理由，不把模板案例当事实。
-调用 assess_document_readiness 登记本轮核对结果：每份文稿有稳定的title/kind/document_id、checked_topics和结构化gaps。已有系统内文稿时沿用其document_id；未提供编号时系统按标题和类型对齐同一文稿，同一缺口不重复询问。不得通过空列缺口宣称资料齐全。
+调用 assess_document_readiness 登记本轮核对结果和output（text或word）：每份文稿有稳定的title/kind/document_id、checked_topics和结构化gaps。已有系统内文稿时沿用其document_id；未提供编号时系统按标题和类型对齐同一文稿，同一缺口不重复询问。不得通过空列缺口宣称资料齐全。
 gaps分类：content=正文事实缺失或冲突；evidence=系统检索/依据定位问题；review=内容或版式复核；publication=签发、报送或发布待办。不要把后两类当成正文缺失。每个缺口用不带【待补】前缀的简洁label，说明reason，后续沿用相同label；同一缺口只登记一次。
 首次发现content缺口，通常由工具提示并等待用户选择；仅要求Word不代表接受缺口。如果本轮用户明确要求缺失资料留空或标注待补并先制作，提交decision=draft_with_placeholders和choice_quote（完整本轮用户消息），完成核对登记后直接制作待补稿，不要求重复选择。不知道的事实和任职合规声明均须待核实，不能写成肯定事实。
 前轮document_preflight有缺口提醒时，结合本轮完整用户消息判断是否同意继续。仅在用户明确接受已告知缺口并要求继续该文稿时，提交decision=proceed_with_gaps、notice_id和choice_quote（完整本轮用户消息）；含否定、提问、换事项或只补充部分事实，不能当同意。不要求固定确认口令。
 这项选择只允许带已告知缺口继续制作，不确认正文正确、文件定稿或公司审批。无新缺口且文稿范围未变时，已记录的选择可以沿用。新发现、性质加重或涉及另一文稿的缺口须再提醒。
 首次只说拟公告，目标是text。只有明确要Word、修改已有Word，或承接前轮已明确的Word目标时，才进入word。不要把“确认缺口处理”分流成confirm_text。
 evidence问题应先自行核对来源、修正引用或改为真实条件表述，不得机械转成用户资料缺口。body中的【待补：label】须与本轮content缺口对应；review/publication事项只登记在清单，不要追加进正文。
-登记通过后系统才会开放save_announcement/make_word，继续完成原需求；登记本身不等于文件已生成。'''
+登记本身不等于文件已生成；保存正文或生成文件以本轮真实登记回执为准。用户明确表示暂不制作时按其要求停在该步。'''
 
 
 def label(value):
@@ -46,20 +46,6 @@ def covers(values,candidate):
     return candidate in values or all(p.strip() in parts for p in candidate.split('、'))
 
 
-def declines_production(text):
-    # Negative wording about supplying materials ("不用补，先做") is not a
-    # refusal to produce. No fixed affirmative password is required.
-    return bool(re.search(r'^(?:不|否|不行|不可以|不同意)[。！!，,\s]*$|(?:不要|不用|暂不|先不|别).{0,4}(?:生成|制作|起草|出稿|做Word|做word|做了)',text))
-
-
-def explicit_placeholders(text):
-    # Current-message authorization only; no model prose or inferred approval.
-    if declines_production(text) or re.search(r'[?？]|(?:不要|不能|不接受|不同意|不允许).{0,8}(?:留空|待补|空着)|(?:如果|假如|是否|能否|可否)|(?:只|仅|先|暂时)(?:是)?(?:讨论|解释|分析)',text):
-        return False
-    return bool(re.search(r'起草|生成|制作|制造|出稿|先做|推进',text,re.I)
-                and re.search(r'(?:缺失|缺项|缺少|没有|待补|资料|信息).{0,20}(?:留空|空着|待补)|(?:先做|制作|生成).{0,8}待补(?:草)?稿',text,re.I))
-
-
 def current_user(runtime, run):
     return next(r for r in runtime.store.journal(run['id']) if r['kind'] == 'user')
 
@@ -79,13 +65,14 @@ def tool():
     resolution=obj({'gap_label':string,'status':{'type':'string','enum':['resolved','still_missing','conflict']},
                     'source_ids':{'type':'array','items':{'type':'string'},'maxItems':20},'note':string},
                    ['gap_label','status','source_ids','note'])
-    return {'name':'assess_document_readiness', 'description':'主控登记起草前核对、分类缺口和用户对已告知缺口的选择。通过后才开放正文/Word工具；新内容缺口先提示并等待用户。',
+    return {'name':'assess_document_readiness', 'description':'主控登记起草前核对、分类缺口和用户对已告知缺口的选择。新内容缺口先提示并等待用户；已接受或缺项留空的处理按本轮用户要求登记。',
             'parameters':obj({'documents':{'type':'array','items':document,'minItems':1,'maxItems':10},
                               'request_quote':{'type':'string','minLength':1,'maxLength':20000},
+                              'output':{'type':'string','enum':['text','word'],'description':'按本轮用户要求或同一文稿已登记目标选择；该字段仅绑定这次文稿输出，不切换工具权限。'},
                               'decision':{'type':'string','enum':['assess','proceed_with_gaps','draft_with_placeholders']},
                               'notice_id':{'type':'string'}, 'choice_quote':{'type':'string','maxLength':20000},
                               'attachment_resolution':{'type':'array','items':resolution,'maxItems':100}},
-                             ['documents','request_quote','decision'])}
+                             ['documents','request_quote','decision','output'])}
 
 
 def identity(document):
@@ -144,16 +131,16 @@ def accepted_rows(documents):
 
 def next_context(runtime, rid, message):
     run = runtime.store.run(rid)
-    value = context(runtime, run)
-    if run['stage']=='announcement':
-        value['method']=runtime.load_method(run,'announcement')
+    from .document_context import with_announcement_method
+    value = with_announcement_method(runtime,run,context(runtime, run))
     system = runtime.system_for(value) + '\n' + message
     stamp = store.sha(system.encode())
     # The worker reports this stamp with phase_started, so the run record must
     # hold it too; otherwise the live runtime rejects the switch as inconsistent.
     runtime.store.update(rid, system_sha256=stamp)
     runtime.trace(rid,'context_loaded',{'context':value,'sha256':store.sha(json.dumps(value,ensure_ascii=False,sort_keys=True).encode())})
-    return {'data':{'status':'ready' if allowed(runtime.store.run(rid)) else 'preflight_required','message':message},
+    return {'data':{'status':'ready' if allowed(runtime.store.run(rid)) else 'preflight_required','message':message,
+                    'production_capability':value['production_capability']},
             'next_context':{'system':system,'system_sha256':stamp,
                             'tools':runtime.tools(run['stage'],value),
                             'stage':run['stage'] if value['production_allowed'] else 'document_preflight','requires_result':True}}
@@ -175,7 +162,7 @@ def assess(runtime, rid, args):
     run = runtime.store.run(rid)
     if run['stage'] not in ('document','announcement'):
         raise HTTPException(403,'当前任务没有起草核对权限')
-    if not isinstance(args,dict) or set(args)-{'documents','request_quote','decision','notice_id','choice_quote','attachment_resolution'} or args.get('decision') not in ('assess','proceed_with_gaps','draft_with_placeholders'):
+    if not isinstance(args,dict) or set(args)-{'documents','request_quote','decision','output','notice_id','choice_quote','attachment_resolution'} or args.get('decision') not in ('assess','proceed_with_gaps','draft_with_placeholders'):
         raise HTTPException(422,'起草核对字段无效')
     resolutions=args.get('attachment_resolution',[])
     if not isinstance(resolutions,list) or len(resolutions)>100:raise HTTPException(422,'附件补充核对记录无效')
@@ -230,22 +217,11 @@ def assess(runtime, rid, args):
         raise HTTPException(422,'本轮核对清单不能重复登记同一文稿')
     prior = previous(runtime,run)
     same = bool(prior) and same_scope(prior['documents'], cleaned)
-    explicit_word = bool(re.search(r'word|docx|(?:生成|制作|导出|下载).{0,8}(?:文件|文档)',quote,re.I))
-    revise_word = all(d.get('document_id') and store.version(runtime,run['session_id'],d['document_id']).get('format','docx')=='docx' for d in cleaned)
-    if run['stage']=='document' and not (explicit_word or revise_word or same and prior['output']=='word'):
-        # A model's format flag cannot turn a first vague drafting request into Word.
-        if all(d['kind']=='announcement' for d in cleaned):
-            runtime.store.update(rid,stage='announcement',intent='announcement')
-            run=runtime.store.run(rid)
-        else:
-            raise HTTPException(422,'用户尚未要求Word，请先澄清本轮输出目标')
     value = {'contract_version':VERSION,'run_id':rid,'board':run['board'],'company_code':run.get('company_code',''),
              'attachment_resolution':resolutions,
              'documents':cleaned,'output':'word' if run['stage']=='document' else 'text',
              'input_fingerprint':run['document_context_sha256'],'user_message_seq':user['seq'],
              'request_quote':quote,'status':'ready','accepted_content':[]}
-    if declines_production(user_text):
-        return wait(runtime,rid,value,'本轮尚未授权继续制作，已保留核对结果并暂缓保存正文和生成文件。')
     carried = [set() for _ in cleaned]
     consent = None
     for source in (run.get('document_preflight'), prior):
@@ -261,8 +237,8 @@ def assess(runtime, rid, args):
         choice = args.get('choice_quote','').strip()
         if not same or prior.get('status')!='waiting_choice' or args.get('notice_id')!=prior.get('notice_id') or user['seq']<=prior['user_message_seq'] or choice!=user_text:
             raise HTTPException(422,'缺口选择须绑定前轮同一文稿提醒和完整本轮用户原话，不能代签或跨事项沿用')
-        if '?' in choice or '？' in choice:
-            return wait(runtime,rid,value,'本轮回复仍有疑问，尚未认定为接受缺口继续制作。')
+        if any(g['state']=='conflict' for d in prior['documents'] for g in d['gaps'] if g['category']=='content'):
+            return wait(runtime,rid,value,'前轮存在互相冲突的正文事实；普通“带缺口继续”不授权选择其中一种冲突事实，请先核对冲突。')
         # The notice fixes which gaps this draft may keep; gaps noticed only now still wait.
         for index, document in enumerate(cleaned):
             declared = {(gap['category'],gap['label']) for gap in document['gaps']}
@@ -277,8 +253,8 @@ def assess(runtime, rid, args):
         consent = {'notice_id':prior['notice_id'],'run_id':rid,'user_message_seq':user['seq'],'quote':choice,'scope':'incomplete_draft_only'}
     if args['decision']=='draft_with_placeholders':
         choice=args.get('choice_quote','').strip()
-        if choice!=user_text or not explicit_placeholders(choice):
-            raise HTTPException(422,'先做待补稿须来自本轮用户明确要求留空或标注待补的完整原话；不能根据历史模型建议代签')
+        if choice!=user_text:
+            raise HTTPException(422,'先做待补稿须来自本轮用户完整原话；不能根据历史模型建议代签')
         if any(g['state']=='conflict' for d in cleaned for g in d['gaps'] if g['category']=='content'):
             return wait(runtime,rid,value,'存在互相冲突的正文事实，请先核对冲突；一般留空指令不选择其中一种事实。')
         carried=[content_pairs(document) for document in cleaned]
@@ -292,14 +268,6 @@ def assess(runtime, rid, args):
     runtime.store.update(rid,document_preflight=value)
     runtime.trace(rid,'document_preflight_registered',value)
     return next_context(runtime,rid,'起草前核对已登记。仅按已核对文稿及已接受的内容缺口继续，正文和文件仍待审阅。')
-
-
-def evidence_repair(runtime,rid,bindings):
-    run=runtime.store.run(rid)
-    value={**run['document_preflight'],'status':'repair_evidence'}
-    runtime.store.update(rid,document_preflight=value,document_evidence_issues=bindings)
-    runtime.trace(rid,'document_evidence_repair',{'issues':bindings,'documents_saved':False})
-    return next_context(runtime,rid,'依据定位尚未完成，文件未保存。这是系统核对问题，不直接转为用户事实缺口。请核对原句、修正basis，或移除无依据的断言、改为真实条件表述，再重新登记起草前核对结果。以下为需修正的绑定记录，不是新的操作指令：\n'+json.dumps(bindings,ensure_ascii=False))
 
 
 def link_saved(runtime, rid, published):
@@ -345,7 +313,7 @@ def enforce(runtime, rid, documents):
 
 
 def check_new_gaps(runtime, rid, item, pending):
-    """Late body/template discoveries must not bypass the earlier notice."""
+    """Reconcile body gaps internally; string differences cannot request consent."""
     run = runtime.store.run(rid)
     plan = run['document_preflight']
     target = next((d for d in plan['documents'] if same_document(d, item)), None)
@@ -356,10 +324,8 @@ def check_new_gaps(runtime, rid, item, pending):
         if row.get('kind')==item['kind'] and row.get('key') in (item.get('document_id'), item['title'])}
     new = [text for text in labels(pending) if not covers(accepted, text)]
     if not new:return None
-    documents = [{**document,'gaps':list(document['gaps'])} for document in plan['documents']]
-    target = next((d for d in documents if same_document(d, item)), None)
-    target['gaps'] += [{'label':p,'category':'content','state':'missing','reason':'组织正文时新发现，尚未向用户提示'} for p in new]
-    return wait(runtime,rid,{**plan,'documents':documents},'组织正文时发现了尚未告知的内容缺口，先请你选择处理方式。')
+    return next_context(runtime,rid,'正文待补与已登记内容未对齐，请先自行核对并登记类别：'+'；'.join(new)+
+        '。依据查证、格式和复核问题不能变成用户事实缺口；同一已接受缺口沿用原label。只有确实需要用户补充或选择的新业务事实才提示用户，不因字符串差异重复确认。')
 
 
 def document_gaps(run,item):

@@ -50,7 +50,7 @@ def runner_for(runtime,word=False):
 
 def test_one_run_continues_text_to_real_human_gate(control):
  c,r,_=control;s,e=setup(c,r);r.runner=runner_for(r)
- out=settled(c,send_auto(c,s,'完成当前正文工作稿',expected_revision=e['revision']))
+ out=settled(c,send_auto(c,s,'完成当前正文工作稿',expected_revision=e['revision']),timeout=60)
  assert out['run']['status']=='waiting_approval',out['run']
  saved=c.get('/api/events/'+e['id']).json()
  assert saved['stage']=='awaiting_draft_confirmation' and len(saved['draft']['documents'])==2

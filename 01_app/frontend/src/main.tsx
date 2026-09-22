@@ -6,6 +6,7 @@ import App from './App';
 import './styles.css';
 import './blackGold.css';
 import './compactPageIntro.css';
+import './conversationReading.css';
 const motionPreference=window.matchMedia('(prefers-reduced-motion: reduce)');
 const subscribeMotion=(changed:()=>void)=>{motionPreference.addEventListener('change',changed);return()=>motionPreference.removeEventListener('change',changed);};
 function WorkspaceTheme(){

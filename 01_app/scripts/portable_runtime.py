@@ -296,10 +296,21 @@ def project_files(root):
     if missing:raise RuntimeError('项目文件不完整：'+', '.join(missing))
 
 
-def service_state(root,port):
+def listening(port):
+    """True only when something actually accepts connections on the port.
+
+    A bare bind() cannot tell a live listener from the TIME_WAIT sockets this
+    workspace's own previous process leaves behind, which used to make a
+    restart look like a foreign takeover until the kernel dropped them.
+    """
     with socket.socket() as probe:
-        try:probe.bind(('127.0.0.1',port));return 'free'
-        except OSError:pass
+        probe.settimeout(1.0)
+        try:probe.connect(('127.0.0.1',port));return True
+        except OSError:return False
+
+
+def service_state(root,port):
+    if not listening(port):return 'free'
     try:
         class NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self,*args,**kwargs):return None
@@ -311,6 +322,14 @@ def service_state(root,port):
 
 
 def launch(root,python,node,port,no_browser=False):
+    # macOS UI is owned by the singleton native App, not disposable browser tabs.
+    if sys.platform == 'darwin':
+        no_browser=True
+        from scripts.service_instance import service_instance
+        with service_instance(workspace_paths.var(root)) as instance:
+            if instance.url:
+                print('本项目已在运行：'+instance.url)
+                return 0
     state=service_state(root,port);url=f'http://127.0.0.1:{port}/'
     if state=='occupied':raise RuntimeError(f'端口 {port} 被其他服务占用；使用 --port 指定另一端口，不会关闭其他服务')
     if state=='ours':
@@ -324,7 +343,14 @@ def launch(root,python,node,port,no_browser=False):
     process=subprocess.Popen(command,cwd=app,env=environment(node))
     try:
         for _ in range(80):
-            if process.poll() is not None:raise RuntimeError('工作台未启动，请查看本窗口错误信息')
+            if process.poll() is not None:
+                if sys.platform == 'darwin' and process.returncode == 0:
+                    # Another launcher can win between the preflight and Popen.
+                    with service_instance(workspace_paths.var(root)) as instance:
+                        if instance.url:
+                            print('本项目已在运行：'+instance.url)
+                            return 0
+                raise RuntimeError('工作台未启动，请查看本窗口错误信息')
             if service_state(root,port)=='ours':break
             time.sleep(.25)
         else:raise RuntimeError('工作台启动超时，未将其他页面标为成功')

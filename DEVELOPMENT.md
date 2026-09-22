@@ -36,13 +36,13 @@ React 工作台 → FastAPI 本机服务 → Python PiRuntime → Node/Pi worker
 | 知识与公告 | `02_knowledge/data/`、`templates/`；JSON、原件与提取正文为资料真源 |
 | 检索索引 | 知识库与公告目录中的 SQLite；可重建，过期时可能退回 JSON 查询 |
 
-同一数据目录通过运行锁防止重复占用。取消停止本轮执行；重启后没有活跃所有者的未完成运行标为中断，不自动重放模型调用或生产操作。保留已登记文件和历史版本。
+macOS 正式启动入口在同一登录用户下共用后端进程锁：同一数据目录复用服务，不同数据目录拒绝并行启动。虚构样例开发入口仍通过独立端口运行。取消停止本轮执行；重启后没有活跃所有者的未完成运行标为中断，不自动重放模型调用或生产操作。保留已登记文件和历史版本。
 
 ## 文稿状态
 
-当前会话按需求进入咨询、公告、Word 或知识维护；同时保留 `assessment → plan → template → draft → word` 的结构化事项路径。候选提交与采用分离，输入、法源、模板或方法变化会使相应旧结果失效。
+1.0.2 的会话由 Pi 按业务能力目录选择咨询、公告、Word 或知识维护操作，不再强制先调用 `route_request`。同时保留 `assessment → plan → template → draft → word` 的结构化事项数据与接口。候选提交与采用分离，输入、法源、模板或方法变化会使相应旧结果失效。
 
-起草前调用 `assess_document_readiness`，登记文稿范围、核对主题与缺口。缺口分为 `content`、`evidence`、`review`、`publication`；只有内容缺失或冲突按资料缺口处理，来源定位错误交回工具修正。仅 `ready` 或 `authorized` 且输入指纹匹配时开放保存工具。
+起草前调用 `assess_document_readiness`，登记文稿范围、核对主题与缺口。缺口分为 `content`、`evidence`、`review`、`publication`；只有内容缺失或冲突按资料缺口处理，来源定位错误交回工具修正。保存文稿时仍须满足对应资料和授权检查；能力目录中可见的工具不代表已经获得写入授权。
 
 未告知的内容缺口通常进入 `waiting_user`。本轮明确要求留空或标注待补时，以 `draft_with_placeholders` 登记原话；接受既有提醒时须绑定同一会话、文稿、提醒编号和本轮消息。接受缺口不等于正文确认；换文稿、新增缺口、事实冲突或取消都不能沿用不适用的选择。
 
@@ -54,7 +54,7 @@ React 工作台 → FastAPI 本机服务 → Python PiRuntime → Node/Pi worker
 
 HTTP 接口装配在 `backend/app.py:create_app`，本机浏览器写入需要有效会话、同源 Origin 与 CSRF。该服务没有互联网多用户登录体系，不应直接暴露到公网。
 
-Pi 进程内操作见 [workflow_operations.py](01_app/backend/workflow_operations.py)。模型工具按意图和阶段授予：初始只开放路由工具，公司核实和分类使用专用工具，起草工具在资料核对后开放。外部资料不授予操作权限。
+Pi 进程内操作见 [workflow_operations.py](01_app/backend/workflow_operations.py)。普通会话使用现有业务工具组成的能力目录；公司核实、分类和法规维护使用专用工具范围。写入由工具处理函数检查资料、权限和确认状态。外部资料不授予操作权限。
 
 完整 HTTP 声明见本文末尾的可展开列表；包含返回 410 的退役接口及条件挂载接口，具体可用性以处理函数为准。
 
@@ -68,6 +68,7 @@ Pi 进程内操作见 [workflow_operations.py](01_app/backend/workflow_operation
 ```
 
 ```sh
+python3 01_app/scripts/generate_manifest.py
 (cd 01_app && ../.venv/bin/python -m pytest -q)
 (cd 01_app/frontend && npm test && npm run typecheck && npm run build)
 (cd 01_app/runtime/pi && npm test)
@@ -84,6 +85,14 @@ python3 01_app/scripts/generate_api_docs.py --check
 
 模型连通性、真实资料质量、生成内容和实际 Word 版式需另行核对，不能由样例测试代替。
 
+## 1.0.2 发布验证与已知缺口
+
+本次发布边界、虚构开发样例、版本一致性、更新数据保留及单实例真实进程检查共 72 项通过。前端 18 项检查、类型检查与网页构建通过；隔离开发入口的真实 HTTP 检查确认页面、JavaScript、公司工作台和资料检索接口可访问，实际返回的 JavaScript 与构建文件逐字节一致。
+
+完整测试尚未通过。Pi 测试为 60 项通过、16 项失败，包含旧测试引用已移除的 `completionInstruction` 及旧分流/自动纠偏行为。后端完整测试发现多项失败后中止，未取得完整通过率；已识别部分用例仍调用已移除的 `route_request`，其余失败尚未逐项归因。保留现有 CI 检查，不将失败隐藏为通过。
+
+上述结果只证明列明的技术路径。真实模型业务效果、正式知识库、Word 人工版式验收和 Windows 原生运行未在本次发布中验证。本次没有构建或安装 App，也不提供安装包。
+
 ## 参与协作
 
 从 `main` 创建功能分支，通过 Pull Request 提交修改，说明问题、行为变化与实际验证。保持既有数据、权限和确认边界；新增依赖或数据库变更应说明兼容性及恢复方式。
@@ -96,32 +105,33 @@ python3 01_app/scripts/generate_api_docs.py --check
 <summary>展开方法、路径和实现位置</summary>
 
 <!-- API-REFERENCE:START -->
-共 120 个 HTTP 方法与路径声明。
+共 121 个 HTTP 方法与路径声明。
 
 | 方法 | 路径 | 实现与行号 | 处理函数 |
 | --- | --- | --- | --- |
-| GET | `/api/events` | [api_events.py:37](01_app/backend/api_events.py#L37) | `events` |
-| POST | `/api/events` | [api_events.py:48](01_app/backend/api_events.py#L48) | `event_create` |
-| GET | `/api/events/{event_id}` | [api_events.py:54](01_app/backend/api_events.py#L54) | `event_get` |
-| PATCH | `/api/events/{event_id}` | [api_events.py:61](01_app/backend/api_events.py#L61) | `event_edit` |
-| POST | `/api/events/{event_id}/assess` | [api_events.py:76](01_app/backend/api_events.py#L76) | `assess` |
-| PATCH | `/api/events/{event_id}/draft` | [api_events.py:89](01_app/backend/api_events.py#L89) | `retired_production` |
-| PATCH | `/api/events/{event_id}/plan` | [api_events.py:89](01_app/backend/api_events.py#L89) | `retired_production` |
-| POST | `/api/events/{event_id}/approve` | [api_events.py:89](01_app/backend/api_events.py#L89) | `retired_production` |
-| POST | `/api/events/{event_id}/draft` | [api_events.py:89](01_app/backend/api_events.py#L89) | `retired_production` |
-| POST | `/api/events/{event_id}/plan` | [api_events.py:89](01_app/backend/api_events.py#L89) | `retired_production` |
-| POST | `/api/events/{event_id}/word/prepare` | [api_events.py:89](01_app/backend/api_events.py#L89) | `retired_production` |
-| POST | `/api/events/{event_id}/word/review` | [api_events.py:89](01_app/backend/api_events.py#L89) | `retired_production` |
+| GET | `/api/events` | [api_events.py:36](01_app/backend/api_events.py#L36) | `events` |
+| POST | `/api/events` | [api_events.py:44](01_app/backend/api_events.py#L44) | `event_create` |
+| GET | `/api/events/{event_id}` | [api_events.py:50](01_app/backend/api_events.py#L50) | `event_get` |
+| PATCH | `/api/events/{event_id}` | [api_events.py:57](01_app/backend/api_events.py#L57) | `event_edit` |
+| POST | `/api/events/{event_id}/assess` | [api_events.py:72](01_app/backend/api_events.py#L72) | `assess` |
+| PATCH | `/api/events/{event_id}/draft` | [api_events.py:85](01_app/backend/api_events.py#L85) | `retired_production` |
+| PATCH | `/api/events/{event_id}/plan` | [api_events.py:85](01_app/backend/api_events.py#L85) | `retired_production` |
+| POST | `/api/events/{event_id}/approve` | [api_events.py:85](01_app/backend/api_events.py#L85) | `retired_production` |
+| POST | `/api/events/{event_id}/draft` | [api_events.py:85](01_app/backend/api_events.py#L85) | `retired_production` |
+| POST | `/api/events/{event_id}/plan` | [api_events.py:85](01_app/backend/api_events.py#L85) | `retired_production` |
+| POST | `/api/events/{event_id}/word/prepare` | [api_events.py:85](01_app/backend/api_events.py#L85) | `retired_production` |
+| POST | `/api/events/{event_id}/word/review` | [api_events.py:85](01_app/backend/api_events.py#L85) | `retired_production` |
 | GET | `/api/events/{event_id}/verify` | [api_gates.py:29](01_app/backend/api_gates.py#L29) | `verify_event` |
-| POST | `/api/events/{event_id}/advance` | [api_gates.py:98](01_app/backend/api_gates.py#L98) | `advance_event` |
-| POST | `/api/events/{event_id}/confirmations` | [api_gates.py:102](01_app/backend/api_gates.py#L102) | `human_confirmation` |
-| POST | `/api/events/{event_id}/drafting-supplements` | [api_gates.py:109](01_app/backend/api_gates.py#L109) | `drafting_supplement` |
-| POST | `/api/events/{event_id}/reopen` | [api_gates.py:113](01_app/backend/api_gates.py#L113) | `reopen_event` |
-| POST | `/api/events/{event_id}/law-bindings` | [api_gates.py:117](01_app/backend/api_gates.py#L117) | `law_bindings` |
-| POST | `/api/events/{event_id}/source-search` | [api_gates.py:121](01_app/backend/api_gates.py#L121) | `source_search` |
-| GET | `/api/events/{event_id}/word/context` | [api_gates.py:125](01_app/backend/api_gates.py#L125) | `word_context` |
-| POST | `/api/events/{event_id}/artifacts` | [api_gates.py:143](01_app/backend/api_gates.py#L143) | `artifact_upload` |
-| GET | `/api/events/{event_id}/artifacts/{artifact_id}/file` | [api_gates.py:147](01_app/backend/api_gates.py#L147) | `artifact_file` |
+| POST | `/api/events/{event_id}/advance` | [api_gates.py:101](01_app/backend/api_gates.py#L101) | `advance_event` |
+| POST | `/api/events/{event_id}/confirmations` | [api_gates.py:105](01_app/backend/api_gates.py#L105) | `human_confirmation` |
+| POST | `/api/events/{event_id}/drafting-supplements` | [api_gates.py:112](01_app/backend/api_gates.py#L112) | `drafting_supplement` |
+| POST | `/api/events/{event_id}/reopen` | [api_gates.py:116](01_app/backend/api_gates.py#L116) | `reopen_event` |
+| POST | `/api/events/{event_id}/law-bindings` | [api_gates.py:120](01_app/backend/api_gates.py#L120) | `law_bindings` |
+| POST | `/api/events/{event_id}/source-search` | [api_gates.py:124](01_app/backend/api_gates.py#L124) | `source_search` |
+| GET | `/api/events/{event_id}/word/context` | [api_gates.py:128](01_app/backend/api_gates.py#L128) | `word_context` |
+| POST | `/api/events/{event_id}/artifacts` | [api_gates.py:146](01_app/backend/api_gates.py#L146) | `artifact_upload` |
+| GET | `/api/events/{event_id}/artifacts/{artifact_id}/preview` | [api_gates.py:150](01_app/backend/api_gates.py#L150) | `artifact_preview` |
+| GET | `/api/events/{event_id}/artifacts/{artifact_id}/file` | [api_gates.py:161](01_app/backend/api_gates.py#L161) | `artifact_file` |
 | GET | `/api/law-lifecycle` | [api_law_lifecycle.py:12](01_app/backend/api_law_lifecycle.py#L12) | `law_lifecycle_state` |
 | POST | `/api/law-lifecycle/check` | [api_law_lifecycle.py:32](01_app/backend/api_law_lifecycle.py#L32) | `law_lifecycle_check` |
 | POST | `/api/law-lifecycle/run` | [api_law_lifecycle.py:39](01_app/backend/api_law_lifecycle.py#L39) | `law_lifecycle_run` |
@@ -135,12 +145,12 @@ python3 01_app/scripts/generate_api_docs.py --check
 | POST | `/api/scenarios/{scenario_id}/import` | [api_library_admin.py:23](01_app/backend/api_library_admin.py#L23) | `import_scenario` |
 | GET | `/api/library/{collection}/manage` | [api_library_admin.py:32](01_app/backend/api_library_admin.py#L32) | `library_manage` |
 | POST | `/api/library/{collection}/update` | [api_library_admin.py:39](01_app/backend/api_library_admin.py#L39) | `library_update` |
-| POST | `/api/events/{event_id}/agent-tasks/{task_id}/finish` | [api_tasks.py:130](01_app/backend/api_tasks.py#L130) | `task_finish` |
-| POST | `/api/events/{event_id}/agent-tasks/{task_id}/adopt` | [api_tasks.py:134](01_app/backend/api_tasks.py#L134) | `task_adopt` |
-| GET | `/api/meta` | [app.py:122](01_app/backend/app.py#L122) | `meta` |
-| GET | `/api/session` | [app.py:129](01_app/backend/app.py#L129) | `session` |
-| DELETE | `/api/session` | [app.py:137](01_app/backend/app.py#L137) | `removed_login` |
-| POST | `/api/session` | [app.py:137](01_app/backend/app.py#L137) | `removed_login` |
+| POST | `/api/events/{event_id}/agent-tasks/{task_id}/finish` | [api_tasks.py:125](01_app/backend/api_tasks.py#L125) | `task_finish` |
+| POST | `/api/events/{event_id}/agent-tasks/{task_id}/adopt` | [api_tasks.py:129](01_app/backend/api_tasks.py#L129) | `task_adopt` |
+| GET | `/api/meta` | [app.py:121](01_app/backend/app.py#L121) | `meta` |
+| GET | `/api/session` | [app.py:128](01_app/backend/app.py#L128) | `session` |
+| DELETE | `/api/session` | [app.py:136](01_app/backend/app.py#L136) | `removed_login` |
+| POST | `/api/session` | [app.py:136](01_app/backend/app.py#L136) | `removed_login` |
 | GET | `/api/chat/models` | [chat_api.py:51](01_app/backend/chat_api.py#L51) | `models` |
 | GET | `/api/model-settings` | [chat_api.py:65](01_app/backend/chat_api.py#L65) | `model_settings` |
 | PUT | `/api/model-settings` | [chat_api.py:69](01_app/backend/chat_api.py#L69) | `save_model_settings` |
@@ -161,19 +171,19 @@ python3 01_app/scripts/generate_api_docs.py --check
 | PATCH | `/api/chat/sessions/{sid}` | [chat_api.py:154](01_app/backend/chat_api.py#L154) | `edit` |
 | GET | `/api/chat/sessions/{sid}` | [chat_api.py:158](01_app/backend/chat_api.py#L158) | `detail` |
 | POST | `/api/chat/sessions/{sid}/runs` | [chat_api.py:165](01_app/backend/chat_api.py#L165) | `send` |
-| GET | `/api/chat/runs` | [chat_api.py:171](01_app/backend/chat_api.py#L171) | `runs` |
-| GET | `/api/chat/runs/{rid}` | [chat_api.py:181](01_app/backend/chat_api.py#L181) | `run` |
-| POST | `/api/chat/runs/{rid}/cancel` | [chat_api.py:185](01_app/backend/chat_api.py#L185) | `cancel` |
-| POST | `/api/chat/runs/{rid}/messages` | [chat_api.py:189](01_app/backend/chat_api.py#L189) | `continue_message` |
-| GET | `/api/chat/runs/{rid}/stream` | [chat_api.py:195](01_app/backend/chat_api.py#L195) | `stream` |
-| GET | `/api/chat/sessions/{sid}/deletion-preview` | [chat_api.py:214](01_app/backend/chat_api.py#L214) | `deletion_preview` |
-| DELETE | `/api/chat/sessions/{sid}` | [chat_api.py:220](01_app/backend/chat_api.py#L220) | `delete_session` |
-| POST | `/api/chat/runs/{rid}/knowledge-confirmation` | [chat_api.py:227](01_app/backend/chat_api.py#L227) | `knowledge_confirmation` |
-| GET | `/api/chat/runs/{rid}/source-candidate` | [chat_api.py:234](01_app/backend/chat_api.py#L234) | `source_candidate` |
-| GET | `/api/chat/runs/{rid}/template-candidate` | [chat_api.py:245](01_app/backend/chat_api.py#L245) | `template_candidate` |
-| GET | `/api/chat/sessions/{sid}/exports` | [chat_api.py:258](01_app/backend/chat_api.py#L258) | `session_exports` |
-| POST | `/api/chat/sessions/{sid}/exports` | [chat_api.py:264](01_app/backend/chat_api.py#L264) | `create_session_export` |
-| GET | `/api/chat/sessions/{sid}/exports/{export_id}/file` | [chat_api.py:270](01_app/backend/chat_api.py#L270) | `session_export_file` |
+| GET | `/api/chat/runs` | [chat_api.py:173](01_app/backend/chat_api.py#L173) | `runs` |
+| GET | `/api/chat/runs/{rid}` | [chat_api.py:183](01_app/backend/chat_api.py#L183) | `run` |
+| POST | `/api/chat/runs/{rid}/cancel` | [chat_api.py:187](01_app/backend/chat_api.py#L187) | `cancel` |
+| POST | `/api/chat/runs/{rid}/messages` | [chat_api.py:191](01_app/backend/chat_api.py#L191) | `continue_message` |
+| GET | `/api/chat/runs/{rid}/stream` | [chat_api.py:197](01_app/backend/chat_api.py#L197) | `stream` |
+| GET | `/api/chat/sessions/{sid}/deletion-preview` | [chat_api.py:216](01_app/backend/chat_api.py#L216) | `deletion_preview` |
+| DELETE | `/api/chat/sessions/{sid}` | [chat_api.py:222](01_app/backend/chat_api.py#L222) | `delete_session` |
+| POST | `/api/chat/runs/{rid}/knowledge-confirmation` | [chat_api.py:229](01_app/backend/chat_api.py#L229) | `knowledge_confirmation` |
+| GET | `/api/chat/runs/{rid}/source-candidate` | [chat_api.py:236](01_app/backend/chat_api.py#L236) | `source_candidate` |
+| GET | `/api/chat/runs/{rid}/template-candidate` | [chat_api.py:247](01_app/backend/chat_api.py#L247) | `template_candidate` |
+| GET | `/api/chat/sessions/{sid}/exports` | [chat_api.py:260](01_app/backend/chat_api.py#L260) | `session_exports` |
+| POST | `/api/chat/sessions/{sid}/exports` | [chat_api.py:266](01_app/backend/chat_api.py#L266) | `create_session_export` |
+| GET | `/api/chat/sessions/{sid}/exports/{export_id}/file` | [chat_api.py:272](01_app/backend/chat_api.py#L272) | `session_export_file` |
 | GET | `/api/company-workspace` | [company_workspace.py:122](01_app/backend/company_workspace.py#L122) | `workspace` |
 | POST | `/api/company-workspace/select` | [company_workspace.py:127](01_app/backend/company_workspace.py#L127) | `choose` |
 | POST | `/api/company-workspace/lookup` | [company_workspace.py:132](01_app/backend/company_workspace.py#L132) | `lookup` |

@@ -26,3 +26,9 @@ restoreReadingPosition(panel as any,replaced as any,perSession.A);assert.equal(s
 const html=renderToStaticMarkup(<ConversationNavigation canRead progress={{tone:'human',title:'判断确认',detail:'等待人工确认',action:'review',actionLabel:'去审阅确认',animate:false,historical:false,activities:[]}} onProgress={()=>{}} onRead={()=>{}} onCompose={()=>{}}/>);
 assert.match(html,/工作进展，判断确认/);assert.match(html,/回到正文/);assert.match(html,/继续提问/);
 console.log('PASS: paragraph offset restored after progress expansion, per-session bookmarks, safe fallback and accessible navigation labels');
+
+// The reading surface now owns its own scroll; missing bookmarks return to its top.
+let ownTop=500;
+const own={get scrollTop(){return ownTop;},getBoundingClientRect:()=>rect(100,600),querySelector:()=>null,querySelectorAll:()=>[],scrollTo:({top}:{top:number})=>{ownTop=top;}};
+restoreReadingPosition(own as any,own as any);assert.equal(ownTop,0);
+restoreReadingPosition(own as any,own as any,{blockIndex:0,delta:0,relative:16,scrollTop:380});assert.equal(ownTop,380);

@@ -28,6 +28,8 @@ def test_process_records_correlated_success_failure_and_preserves_tool_protocol(
     def bridge(name,args):
         if args['fail']:raise HTTPException(409,'failed secret-key')
         return {'data':{'text':'private-result'}}
+    # work() 在进入 process 前登记本轮模型凭据，直达 process 的用例补上同一前提。
+    threading.current_thread().pi_secrets=('secret-key',)
     PiRuntime.process(runtime,'r',{'apiKey':'secret-key'},events.append,bridge,threading.Event())
     receipts=[(kind,b) for kind,b in traces if b.get('transport')=='pi_model']
     assert [kind for kind,_ in receipts]==['tool_started','tool_returned','tool_started','tool_failed']

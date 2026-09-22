@@ -1,0 +1,65 @@
+/* NDT V2: fixed compact controls around one independent reading surface. */
+.workspace-page:has(.conversation-console){display:flex;overflow:hidden;min-height:0}
+.workspace-page>.conversation-console{height:100%;min-height:0;display:flex;flex-direction:column}
+.conversation-console .conversation-layout{flex:1 1 0;height:100%;min-height:0;max-height:none;overflow:hidden;grid-template-columns:210px minmax(0,1fr)}
+.conversation-console .conversation-layout:has(.sessions-collapsed){grid-template-columns:96px minmax(0,1fr)}
+.conversation-console .session-panel{position:static;height:100%;max-height:none;min-height:0;display:flex;flex-direction:column;align-self:stretch}
+.conversation-console .session-list{flex:1;min-height:0;overflow:auto}
+.conversation-console .session-panel.sessions-collapsed>.session-footer,.conversation-console .session-panel.sessions-collapsed>.ant-input-affix-wrapper{display:none}
+.conversation-console .chat-panel{min-height:0;overflow:hidden}
+.conversation-console .chat-heading{position:static;flex:none;height:52px;min-height:52px;padding:8px 20px;flex-wrap:nowrap}
+.conversation-console .chat-heading h2{font-size:16px;max-width:none;min-width:0;flex:1;line-height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conversation-console .chat-messages{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:20px 28px;scrollbar-gutter:stable}
+.conversation-console .chat-round,.conversation-console .chat-messages>.inline-panel,.conversation-console .chat-messages>.approval-history{max-width:1040px;margin-inline:auto}
+.conversation-console .chat-round{padding-bottom:30px}
+.conversation-console .chat-message.assistant{max-width:100%;padding:0;margin-bottom:14px}
+.conversation-console .message-markdown{font-size:14px;line-height:1.8}
+.conversation-console .message-markdown h1,.conversation-console .message-markdown h2{font-size:18px;line-height:1.6;margin:18px 0 10px}
+.conversation-console .message-markdown h3{font-size:16px;margin:18px 0 8px}
+.conversation-console .message-markdown h4{font-size:14px}
+.conversation-console .message-table{max-width:100%;overflow-x:auto}
+.conversation-console .round-analysis{font-size:14px}
+.conversation-console .chat-message.user{max-width:78%;width:fit-content;padding:0;background:transparent;border-radius:0;margin:0 0 18px auto}
+.question-bubble{display:flex;gap:10px;align-items:flex-start;width:100%;border:0;border-radius:11px 11px 3px 11px;background:#eff4f5;padding:10px 15px;text-align:left;font:inherit;font-size:15px;line-height:1.7;color:#243b45;cursor:pointer}
+.question-bubble:focus-visible{outline:2px solid #356a7a;outline-offset:3px}
+.question-text{min-width:0;flex:1;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;overflow-wrap:anywhere;user-select:text}
+.question-bubble.expanded .question-text{display:block;-webkit-line-clamp:unset;overflow:visible;white-space:pre-wrap}
+.question-toggle{display:block;flex:none;align-self:flex-end;font-size:11px;line-height:18px;color:#527584;text-align:right;margin-top:0}
+.chat-message.user>small{display:block;text-align:right;color:#7b650d;font-size:12px;margin-top:5px}
+.round-process{margin:0 0 16px}.round-elapsed{font-size:12px;color:#73838b;margin:0 0 12px;line-height:20px}
+.round-process-text{margin:10px 0 22px}.round-process-text .message-markdown{font-size:14px;line-height:1.8;color:#344c57}
+.answer-caveats{font-size:14px;line-height:1.8;color:#805510;border-left:2px solid #dcc99e;padding:6px 12px;margin:16px 0}
+.answer-caveats ul{margin:5px 0;padding-left:20px}
+.answer-deliveries{margin:16px 0 8px}.answer-delivery+.answer-delivery{margin-top:18px}
+.delivery-label{font-size:12px;color:#617681;margin:0 0 8px;overflow-wrap:anywhere}
+.delivery-actions{display:flex;align-items:center;gap:8px}.delivery-warning{font-size:13px;line-height:1.7;color:#805510;margin:5px 0 9px}
+.delivery-notice{font-size:12px;color:#617681}.answer-deliveries .ant-alert{margin-top:10px}
+.conversation-console .chat-composer{flex:none;margin:10px 20px 14px;padding:9px 12px 8px;min-width:0;border-radius:9px;border-color:#beced3;background:white}
+.conversation-console .chat-composer:focus-within{border-color:#47798a;box-shadow:0 0 0 2px #47798a12}
+.conversation-console .chat-composer textarea.ant-input{font-size:15px;line-height:26px;padding:0 3px}
+.conversation-console .composer-foot{display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;padding-top:6px}
+.composer-tools{display:flex;align-items:center;gap:4px;min-width:0;flex:0 1 320px}
+.composer-tools>.ant-select{flex:1;min-width:140px;max-width:260px;font-size:12px}
+.composer-tools>.ant-select .ant-select-selector{border-color:transparent!important;background:transparent!important;padding-left:3px!important}
+.composer-tools>.ant-btn{flex:none;padding:3px 7px;height:30px}.attachment-picker.compact{padding:0;display:block;flex:none}
+.attachment-picker.compact>.ant-btn{border:0;box-shadow:none;height:30px;width:30px}
+.composer-hint{font-size:11px;color:#7b8b92;white-space:nowrap}
+.composer-send{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.composer-send>.ant-select{width:178px;min-width:0;font-size:12px}.composer-send .ant-btn{height:32px}
+.composer-attachments{margin:0 0 8px;max-height:84px;overflow-y:auto;flex-wrap:wrap}
+.conversation-console .historical-input-notice{flex:none}
+@media(max-width:1440px){.conversation-console .composer-hint{display:none}.conversation-console .chat-messages{padding:18px 22px}.composer-tools{flex-basis:340px}.conversation-console .message-markdown{font-size:14px}}
+.new-reply-notice{flex:none;text-align:right;padding:0 24px;height:26px}.new-reply-notice .ant-btn{font-size:12px}
+.answer-caveats{font-size:13px}.answer-caveats details{font-size:12px}.answer-caveats summary{cursor:pointer;color:#795a22}
+.unsaved-draft{margin:14px 0;font-size:13px;border-left:2px solid #d5dfe3;padding-left:12px}.unsaved-draft>summary{cursor:pointer;color:#526d79}.unsaved-draft .message-markdown{margin-top:14px}.conversation-console .run-outcome{font-size:13px;line-height:1.7;margin:8px 0 15px;color:#805510}
+
+/* A collapsed session rail still contains the user's tasks. */
+.conversation-console .session-panel.sessions-collapsed{padding:10px 6px}
+.conversation-console .sessions-collapsed .session-list{display:block;flex:1;min-height:0;margin:8px 0 0;padding:0;overflow-y:auto;overflow-x:hidden}
+.conversation-console .sessions-collapsed .session-item{padding:5px 6px;min-height:32px;border-radius:5px}
+.conversation-console .sessions-collapsed .session-select{width:100%;min-width:0;gap:0}
+.conversation-console .sessions-collapsed .session-select>.anticon,.conversation-console .sessions-collapsed .session-row-actions{display:none}
+.conversation-console .sessions-collapsed .session-select strong{font-size:11px;line-height:20px;min-width:0;max-width:100%}
+.conversation-console .sessions-collapsed .session-heading{gap:3px}
+.conversation-console .sessions-collapsed .session-empty{padding:10px 3px;font-size:11px}
+.session-select:focus-visible{outline:2px solid #426e7d;outline-offset:1px;border-radius:3px}

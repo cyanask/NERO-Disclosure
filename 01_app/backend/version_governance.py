@@ -28,7 +28,7 @@ LOCK=threading.RLock()
 JOBS={}
 ASSET=re.compile(r'(?:src|href)="(/[^"]+)"')
 VERIFY_CHUNK=64*1024
-BOUNDARY=('版本记录只做只读核对：读取清单、前端资源、Pi 引擎与数据表结构，不重新构建、不覆盖文件、不删除任何回退点。'
+BOUNDARY=('版本记录只做只读核对：读取发布清单与运行服务信息，不重新构建、不覆盖文件、不删除任何回退点。'
           '清单指纹证明“与本副本的发布清单一致”，不等于法律效力或内容正确。')
 
 
@@ -297,6 +297,29 @@ def log(directory,limit=20):
     return rows[::-1]
 
 
+def release_notes(root):
+    """Curated iteration records shipped as content, not inferred from file state.
+
+    The page needs what each version changed, which no scan can derive. The file
+    is optional: a missing or malformed record degrades to an empty list instead
+    of failing the whole version scan.
+    """
+    path=Path(root)/'config/release-notes.json'
+    try:
+        value=json.loads(path.read_text('utf-8'))
+    except (OSError,ValueError):
+        return {'current':'','releases':[]}
+    if not isinstance(value,dict):return {'current':'','releases':[]}
+    releases=[]
+    for row in value.get('releases') or []:
+        if not isinstance(row,dict) or not isinstance(row.get('version'),str) or not row['version'].strip():continue
+        items=[str(item).strip() for item in row.get('items') or [] if isinstance(item,str) and item.strip()]
+        releases.append({'version':row['version'].strip(),'released_at':str(row.get('released_at') or ''),
+                         'kind':str(row.get('kind') or ''),'summary':str(row.get('summary') or ''),'items':items})
+    current=str(value.get('current') or '').strip() or (releases[0]['version'] if releases else '')
+    return {'current':current,'releases':releases}
+
+
 def scan(root,directory,runtime):
     started=time.monotonic()
     app=workspace_paths.app_of(root);repository=workspace_paths.repository_root(app)
@@ -307,6 +330,7 @@ def scan(root,directory,runtime):
             'data':data(root,directory),'rollback':rollback(root,directory)}
     record['check']=manifest_check(app,manifest)
     record['changes']=log(directory)
+    record['releases']=release_notes(app)
     record['elapsed_ms']=round((time.monotonic()-started)*1000)
     with LOCK:
         folder=Path(directory)/'governance';folder.mkdir(parents=True,exist_ok=True)
@@ -321,11 +345,19 @@ def scan(root,directory,runtime):
     return record
 
 
-def saved(directory):
+def saved(directory, root=None):
+    """The last scan record; with a root, the iteration records stay current.
+
+    The scan snapshot carries the content of its own moment. The version page must
+    also show records added after the last scan, so a read attaches the current
+    file instead of the stale copy inside the record.
+    """
     path=Path(directory)/'governance/last-version.json'
     if not path.is_file():return None
-    try:return json.loads(path.read_text('utf-8'))
+    try:record=json.loads(path.read_text('utf-8'))
     except (OSError,ValueError):return None
+    if root is not None and isinstance(record,dict):record['releases']=release_notes(root)
+    return record
 
 
 def verify_state(directory):

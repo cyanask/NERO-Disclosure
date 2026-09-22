@@ -186,6 +186,23 @@ class ChatStore:
             c.execute('UPDATE runs SET status=?,event_id=?,body=? WHERE id=?',(run['status'],run['event_id'],json.dumps(run,ensure_ascii=False),rid))
         return run
 
+    def increment_timing(self, rid, key, value):
+        """Accumulate one timing metric in one SQLite transaction.
+
+        This avoids PiRuntime.add_timing doing run() + update(), which opened two
+        separate connections/transactions for every metric sample.
+        """
+        with self.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
+            row=c.execute('SELECT body FROM runs WHERE id=?',(rid,)).fetchone()
+            if not row:raise HTTPException(404,'执行不存在')
+            run=json.loads(row[0]);metrics=run.get('timings',{})
+            metrics[key]=round(float(metrics.get(key,0))+float(value),2)
+            run.update(timings=metrics,updated=time.time())
+            c.execute('UPDATE runs SET status=?,event_id=?,body=? WHERE id=?',
+                      (run['status'],run['event_id'],json.dumps(run,ensure_ascii=False),rid))
+        return metrics[key]
+
     def runs(self, sid=None, board=None, limit=None, offset=0):
         self.pagination(limit,offset)
         # Session and board both filter in SQL; ordering stays newest first.

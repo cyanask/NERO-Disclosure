@@ -128,8 +128,7 @@ def supplement(event, payload):
 
 def failed_attempt(event, stage, report):
     from .gates import digest
-    # Different missing fields are not the same repair failure. Keep the old
-    # identity for other issue types, so their existing budgets remain valid.
+    # Count distinct repair issues for diagnostics only; never stop at a fixed count.
     issues=[{'code':i['code'],**({'detail':i.get('detail','')} if i['code']=='candidate_schema_invalid' else {})}
             for i in report.get('issues',[])]
     issue_keys=sorted(digest(i) for i in issues) if any(i['code']=='candidate_schema_invalid' for i in issues) else sorted(i['code'] for i in issues)
@@ -137,9 +136,6 @@ def failed_attempt(event, stage, report):
                       'facts':event['facts'],'summary':event.get('summary','')})
     attempts=event.setdefault('repair_attempts',{})
     attempts[signature]=attempts.get(signature,0)+1
-    if attempts[signature]>=3:
-        event['stage']='manual_escalation'
-        event['escalation']={'node':stage,'reason':'相同问题已达到初次失败加两次自动修复上限','signature':signature,'at':now()}
 
 
 def reopen(event, payload, actor):

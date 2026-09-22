@@ -18,6 +18,12 @@ def human_stages(event):return ('assessment','draft','word') if enabled(event) e
 def digest(value):
     return hashlib.sha256(json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
 
+def strict_review_mapping(verdicts, items=None):
+    from .semantic_review import validate_verdicts
+    checked=validate_verdicts(verdicts,items)
+    return {row['item_id']:row for row in checked} if checked is not None else None
+
+
 def verified_receipt(event,catalog,stage):
     """A stage receipt counts only while it matches the current input fingerprint."""
     row=event.get('verified_stages',{}).get(stage) or {}
@@ -103,12 +109,15 @@ def evaluate(event, seeds, stage, *, catalog=None, require_result=True, artifact
     catalog=catalog if catalog is not None else seeds.catalog()
     # Verdicts recorded on the live task apply only to the candidate they were bound to.
     # A changed candidate or changed input silently falls back to a fresh review.
+    review_invalid=False
     if review is None:
         for task in reversed(event.get('agent_tasks',[]) or []):
             stored=task.get('semantic_review')
             if task.get('stage')!=stage or not stored or task.get('status')=='stale':continue
-            if stored.get('candidate_sha256')==digest(task.get('result')) and isinstance(stored.get('verdicts'),list):
-                review={v['item_id']:v for v in stored['verdicts'] if isinstance(v,dict) and isinstance(v.get('item_id'),str)}
+            if stored.get('candidate_sha256')==digest(task.get('result')):
+                # Invalid/duplicate rows become an attempted-but-incomplete review, never a PASS.
+                review=strict_review_mapping(stored.get('verdicts'))
+                if review is None:review={};review_invalid=True
             break
     dated=copy.deepcopy(event)
     assessment=event.get('assessment') or {}
@@ -148,6 +157,16 @@ def evaluate(event, seeds, stage, *, catalog=None, require_result=True, artifact
         errors.append(issue('contract_version_missing','历史候选须按当前 v2.1 合同重新提交，不能复用旧 Gate'))
         result=None
     if stage=='assessment' and result:
+        if review is not None:
+            # Derive the expected set without consuming stored decisions or mutating
+            # the live candidate. Structural validity alone cannot reject extra ids.
+            _,_,expected=assessment_stage(copy.deepcopy(dated),copy.deepcopy(event),catalog,
+                                         copy.deepcopy(result),None,seeds)
+            checked=strict_review_mapping(list(review.values()),expected) if isinstance(review,dict) else None
+            if checked is None or review_invalid:
+                errors.append(issue('semantic_review_invalid','独立语义复核结果与当前待复核项不完整对应或字段无效'))
+                review={}
+            else:review=checked
         extra, notes, pending=assessment_stage(dated,event,catalog,result,review,seeds)
         errors+=extra;warnings+=notes;review_items+=pending
     elif stage=='plan' and result:

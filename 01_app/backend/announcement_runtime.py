@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from . import document_store as store
 
 
-def routing_documents(runtime,run):
+def conversation_documents(runtime,run):
     index=store.load(runtime,run['session_id'])
     current=[d['versions'][-1] for d in index['documents']]
     previous=next((r for r in runtime.store.runs(run['session_id']) if r['id']!=run['id']),None)
@@ -45,6 +45,6 @@ def confirm_text(runtime,run,args,*,continue_to_word=False):
             'source_run_id':run['id'],'source_message_seq':user['seq']}) for t in targets]
         runtime.trace(run['id'],'text_confirmed',{'documents':confirmed,'user_message_seq':user['seq'],'business_state_changed':False})
         if not continue_to_word:
-            runtime.store.update(run['id'],stage='confirmation',intent='confirm_text',intent_domain='disclosure',outcome='completed',documents=confirmed,skill_status='not_applicable')
+            runtime.store.update(run['id'],stage='confirmation',outcome='completed',documents=confirmed,skill_status='not_applicable')
             runtime.trace(run['id'],'assistant',{'phase':'final','stopReason':'stop','text':'已记录当前公告正文版本的确认。需要文件时可直接说“制作成 Word”；后续修改会保留新版本。'})
     return {'data':{'status':'text_confirmed','documents':confirmed,'business_state_changed':False},'terminate':True}

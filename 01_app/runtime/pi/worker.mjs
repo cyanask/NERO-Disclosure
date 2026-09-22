@@ -6,12 +6,17 @@ import {conversationCheckpoint,createConversationCompactor} from './conversation
 import contract from '../../config/model-contract.json' with {type:'json'};
 import { Type } from 'typebox';
 import { createInterface } from 'node:readline';
+import { setImmediate } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { createHash,randomUUID } from 'node:crypto';
 import { brokerOptions } from './broker_compat.mjs';
-import { createWorkflowCompactor, publicProviderError } from './workflow_context.mjs';
+import { publicProviderError } from './workflow_context.mjs';
 import { trackWorkerTransports, flushStdout } from './worker_resources.mjs';
-import { completionInstruction, controlMessage } from './completion_control.mjs';
+import { controlMessage } from './completion_control.mjs';
+
+export function executionErrorMessage(error) {
+  return '模型运行失败，请核对端点、凭据、模型或取消状态。';
+}
 
 // This worker owns one model round. Business state and tool effects belong to Python.
 export async function execute(packet, emit, bridge, streamOverride, signal, releaseTransports, onControl, resolveAuth) {
@@ -21,13 +26,15 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
   packet={...packet,model:hydrateModel(packet.model,provider,packet.providerEnv)};
   const streamFn = streamOverride || await modelStream(packet.model,provider);
   const requestStream=async(model,context,options)=>{
+    await setImmediate(); // Let cancellation/steering reach even an immediately resolving provider.
+    if(signal?.aborted)throw new Error("Cancelled");
     if(packet.refresh_auth&&resolveAuth){
       const auth=await resolveAuth();
       if(auth.provider!==packet.model.provider||auth.model!==packet.model.id)throw new Error('Authorization no longer belongs to the selected model');
       packet.apiKey=auth.apiKey;packet.headers=auth.headers||{};packet.providerEnv=auth.env||{};
       if(auth.baseUrl)model={...model,baseUrl:auth.baseUrl};
     }
-    const request=providerRequestOptions(model,brokerOptions(model,{...options,apiKey:packet.apiKey,headers:packet.headers||{},env:packet.providerEnv||{},maxRetries:0}));
+    const request=providerRequestOptions(model,brokerOptions(model,{...options,apiKey:packet.apiKey,headers:packet.headers||{},env:packet.providerEnv||{}}));
     const onPayload=request.onPayload;
     request.onPayload=async(payload,requestModel)=>{
       const transformed=await onPayload?.(payload,requestModel);
@@ -41,18 +48,12 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
   const compactConversation=createConversationCompactor(packet,async(model,context,options)=>{
     return requestStream(model,context,options);
   },emit,checkpoint);
-  let turns = 0, calls = 0, submissions = 0, messageNumber = 0, localLimit = '';
+  let turns = 0, calls = 0, messageNumber = 0;
   let finalizationRequested = false, closing = false, closingTurns = 0, sealed = false;
-  const maxSubmissions = 3, maxTotalSubmissions = 10, maxContextTransitions = 4;
-  let awaitingRoute = !!packet.routeFirst, pendingContext;
-  let stage = packet.stage || '', requiresResult = packet.requires_result === true;
-  let completionRepairs = 0, routingRepairs = 0, totalCompletionRepairs = 0, started = false, activeCall, pendingDone;
-  let contextTransitions = 0;
-  const stageSubmissions = new Map(), stageRepairs = new Map();
-  let pendingCompaction, latestUnadoptedCandidate;
-  const compactContext = createWorkflowCompactor([...(packet.history || []).filter(message=>message.role==='user'),{role:'user',content:packet.prompt,timestamp:Date.now()}]);
+  let pendingContext;
+  let stage = packet.stage || '';
+  let started = false, activeCall, pendingDone;
   const executedToolIds = new Set();
-  const maxCompletionRepairs = 2, maxTotalCompletionRepairs = 8;
   const finishModelCall = (stopReason, usage) => {
     if (!activeCall) return;
     const {startedAt, ...publicCall} = activeCall;
@@ -61,29 +62,14 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
   };
   const makeTools = specs => specs.map(spec => ({
     name: spec.name, label: spec.name, description: spec.description,
-    parameters: Type.Unsafe(spec.parameters), executionMode: 'sequential',
+    parameters: Type.Unsafe(spec.parameters),
     execute: async (id, args) => {
       executedToolIds.add(id);
       if (sealed) return {content:[{type:'text',text:'本轮业务执行已结束，请根据已登记结果答复。'}],details:{},terminate:true};
-      if (pendingContext) return {content:[{type:'text',text:'节点已切换，请在下一轮使用新节点的工具继续。'}],details:{}};
-      const submission = spec.name === 'submit_candidate' || spec.name === 'knowledge_propose';
-      if (submission) {
-        const stageCount = (stageSubmissions.get(stage) || 0) + 1;
-        stageSubmissions.set(stage, stageCount);
-        if (++submissions > maxTotalSubmissions || stageCount > maxSubmissions) { localLimit = 'Tool call limit reached'; throw new Error(localLimit); }
-      }
       calls++;
       if (signal?.aborted) throw new Error('Cancelled');
       const result = await bridge(id, spec.name, args);
-      if (packet.compact_workflow_context && spec.name === 'submit_candidate') {
-        if (result.next_context) {latestUnadoptedCandidate=undefined;pendingCompaction='stage_transition';}
-        else if (result.data?.outcome === 'revise') {
-          const {result_snapshot,...feedback}=result.data;
-          latestUnadoptedCandidate={stage,candidate:{result:result_snapshot?.result||args.result},validation:feedback};
-          pendingCompaction='candidate_revision';
-        }
-      }
-      if (result.next_context) {pendingContext=result.next_context;awaitingRoute=false;}
+      if (result.next_context) pendingContext=result.next_context;
       if (result.terminate && !result.next_context) {
         sealed = true;
         agent.clearAllQueues();
@@ -91,10 +77,7 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
         queuedMessages.clear();
         finalizationRequested = !!result.finalize;
       }
-      // Source originals stay in the journal; the model already read them through source tools.
-      let data = result.data?.result_snapshot ? {...result.data,result_snapshot:{...result.data.result_snapshot,sources:undefined}} : result.data;
-      if(packet.compact_workflow_context && data?.outcome==='revise')data={...data,result_snapshot:data.result_snapshot?{...data.result_snapshot,result:undefined,result_ref:'latest_unadopted_candidate'}:undefined};
-      return { content: [{ type: 'text', text: JSON.stringify(data) }],
+      return { content: [{ type: 'text', text: JSON.stringify(result.data) }],
         details: {}, ...(result.terminate && !result.next_context ? { terminate: true } : {}) };
     },
   }));
@@ -112,25 +95,14 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
       return messages;
     },
     prepareNextTurnWithContext: ({context}) => {
-      if(!pendingContext && !pendingCompaction)return;
+      if(!pendingContext)return;
       let updated={...context};
       if (pendingContext) {
-        if (++contextTransitions > maxContextTransitions) { localLimit = 'Model turn limit reached'; throw new Error(localLimit); }
         const next=pendingContext;pendingContext=undefined;
         stage = next.stage ?? stage;
-        requiresResult = next.requires_result === true;
-        completionRepairs = stageRepairs.get(stage) || 0;
         updated={...updated,systemPrompt:next.system,tools:makeTools(next.tools)};
         agent.state.systemPrompt=updated.systemPrompt;agent.state.tools=updated.tools;
         emit({type:"phase_started",stage,system_sha256:next.system_sha256,model:packet.model.id,provider:packet.model.provider,reasoning_effort:packet.reasoning_effort||"off"});
-      }
-      if (pendingCompaction) {
-        const reason=pendingCompaction;pendingCompaction=undefined;
-        const messages=compactContext(updated.messages,latestUnadoptedCandidate,reason);
-        if (messages) {
-          emit({type:'context_compacted',stage,reason,before_chars:JSON.stringify(updated.messages).length,after_chars:JSON.stringify(messages).length});
-          updated={...updated,messages};agent.state.messages=messages.slice();
-        }
       }
       return {context:updated};
     },
@@ -139,20 +111,20 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
     streamFn: async (model, context, options) => {
       if (closing && ++closingTurns > 1) throw new Error('Closing reply requested another model turn');
       turns++;
-      const effort = (awaitingRoute ? packet.routing_reasoning_effort : closing ? packet.closing_reasoning_effort : undefined) ?? packet.reasoning_effort ?? 'off';
-      const maxTokens = (awaitingRoute ? packet.routing_max_tokens : closing ? packet.closing_max_tokens : undefined) ?? packet.maxTokens ?? model.maxTokens ?? contract.defaults.maxTokens;
-      activeCall = {call:turns,phase:awaitingRoute?'routing':closing?'final':'working',stage,reasoning_effort:effort,maxTokens,startedAt:performance.now()};
+      const effort = packet.reasoning_effort ?? 'off';
+      const maxTokens = packet.maxTokens ?? model.maxTokens ?? contract.defaults.maxTokens;
+      activeCall = {call:turns,phase:closing?'final':'working',stage,reasoning_effort:effort,maxTokens,startedAt:performance.now()};
       const {startedAt, ...publicCall} = activeCall;
       emit({type:'model_call_started', ...publicCall, tools:context.tools.map(t=>t.name)});
       try {
         return await requestStream(model,context,{...options,reasoning:effort,maxTokens});
       } catch (error) {
         finishModelCall(signal?.aborted?'aborted':'error');
-        if (!signal?.aborted) emit({type:'provider_failure',stage,phase:awaitingRoute?'routing':closing?'final':'working',stopReason:'error',message:publicProviderError(error.message,packet)});
+        if (!signal?.aborted) emit({type:'provider_failure',stage,phase:closing?'final':'working',stopReason:'error',message:publicProviderError(error.message,packet)});
         throw error;
       }
     },
-    toolExecution: 'sequential', sessionId: packet.session_id,
+    sessionId: packet.session_id,
     getApiKey: () => packet.apiKey,
   });
   const abort = () => agent.abort();
@@ -181,18 +153,17 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
         // Pi appends full arguments to schema errors. Keep the diagnostic only;
         // never serialize arguments, private reasoning or provider credentials.
         const error = (event.result?.content || []).filter(item=>item.type==='text').map(item=>item.text).join('\n').split('\n\nReceived arguments:')[0].slice(0,2000);
-        emit({type:'tool_validation_failed',phase:awaitingRoute?'routing':'working',stage,tool:event.toolName,error});
+        emit({type:'tool_validation_failed',phase:'working',stage,tool:event.toolName,error});
       }
     }
-    if (!awaitingRoute && event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
+    if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
       emit({ type: 'text_delta', message: messageNumber, phase:closing?'final':'working', delta: event.assistantMessageEvent.delta });
     }
     if (event.type === 'message_end' && event.message.role === 'assistant') {
       const m = event.message;
       const usage = m.usage ? Object.fromEntries(Object.entries(m.usage).filter(([key]) => ['input','output','cacheRead','cacheWrite','totalTokens'].includes(key))) : undefined;
       finishModelCall(m.stopReason, usage);
-      if (m.stopReason === 'error' || m.stopReason === 'length') emit({type:'provider_failure',stage,phase:awaitingRoute?'routing':closing?'final':'working',stopReason:m.stopReason,message:publicProviderError(m.errorMessage || (m.stopReason==='length'?'Provider output limit reached':agent.state.errorMessage),packet)});
-      if(awaitingRoute){emit({type:'routing_usage',usage});messageNumber++;return;}
+      if (m.stopReason === 'error' || m.stopReason === 'length') emit({type:'provider_failure',stage,phase:closing?'final':'working',stopReason:m.stopReason,message:publicProviderError(m.errorMessage || (m.stopReason==='length'?'Provider output limit reached':agent.state.errorMessage),packet)});
       // Never serialize private reasoning, provider payloads or headers.
       emit({ type: 'assistant', message: messageNumber++, text: m.content.filter(x => x.type === 'text').map(x => x.text).join(''),
         phase:closing?'final':m.content.some(x=>x.type==='toolCall')?'progress':'answer',
@@ -200,35 +171,17 @@ export async function execute(packet, emit, bridge, streamOverride, signal, rele
     }
   });
   const checkCompletion = () => {
-    if (localLimit) throw new Error(localLimit);
     const last = [...agent.state.messages].reverse().find(x => x.role === 'assistant');
+    if (signal?.aborted || last?.stopReason === 'aborted') throw new Error('Cancelled');
     if (agent.state.errorMessage || last?.stopReason === 'error') throw new Error('Provider failed; verify endpoint, credentials and model configuration');
     if (last?.stopReason === 'length') throw new Error('Provider output limit reached');
-    if (signal?.aborted || last?.stopReason === 'aborted') throw new Error('Cancelled');
     return last;
   };
   try {
     await agent.prompt(packet.prompt);
     checkCompletion();
-    while ((awaitingRoute || requiresResult) && !sealed) {
-      const phase = awaitingRoute?'routing':'working';
-      if ((awaitingRoute?routingRepairs:completionRepairs) >= maxCompletionRepairs || totalCompletionRepairs >= maxTotalCompletionRepairs) {
-        emit({type:'completion_incomplete',phase,stage,turns,calls,repairs:awaitingRoute?routingRepairs:completionRepairs,total_repairs:totalCompletionRepairs,message:awaitingRoute?'请求分流尚未完成；请重新接续本轮分流。':'当前节点尚未登记业务结果；已保留本轮文字，请从当前节点接续。'});
-        pendingDone = {type:'done',turns,calls,completion_complete:false};
-        return;
-      }
-      totalCompletionRepairs++;
-      if (awaitingRoute) routingRepairs++;
-      else {completionRepairs++;stageRepairs.set(stage, completionRepairs);}
-      emit({type:'completion_repair_started',phase,stage,attempt:awaitingRoute?routingRepairs:completionRepairs,total_attempts:totalCompletionRepairs});
-      const instruction=completionInstruction(stage,agent.state.tools,awaitingRoute);
-      if(!instruction){
-        emit({type:'completion_incomplete',phase,stage,message:'当前阶段缺少必要执行工具，已停止自动重试；请检查系统工具配置。'});
-        pendingDone={type:'done',turns,calls,completion_complete:false};return;
-      }
-      await agent.prompt(controlMessage(instruction,'completion_repair'));
-      checkCompletion();
-    }
+    // Native Pi owns tool selection and the next turn. Missing business receipts
+    // are reported by the host; they do not create a second prompt/retry loop.
     if (finalizationRequested) {
       closing = true;
       agent.state.tools = [];
@@ -280,7 +233,7 @@ async function main() {
         pending.set(id, { resolve, reject }); emit({ type: 'tool_call', id, name, args });
       }), undefined, abort.signal, releaseTransports,value=>{control=value;for(const message of earlyMessages)control.enqueue(message);earlyMessages.length=0;},()=>new Promise((resolve,reject)=>{
         const id='auth-'+randomUUID();pending.set(id,{resolve,reject});emit({type:'auth_request',id});
-      })).catch(error => emit({ type: 'error', message: ['Tool call limit reached','Model turn limit reached'].includes(error.message) ? '本轮达到工具或模型调用额度，已停止；请缩小本轮范围后继续。' : '模型运行失败，请核对端点、凭据、模型或取消状态。' }))
+      })).catch(error => emit({ type: 'error', message: executionErrorMessage(error) }))
         .finally(async () => { finished = true; lines.close(); process.stdin.destroy(); await releaseTransports(); await flushStdout(); });
     } else if(input.type==='user_message'){
       if(control)control.enqueue(input);else earlyMessages.push(input);

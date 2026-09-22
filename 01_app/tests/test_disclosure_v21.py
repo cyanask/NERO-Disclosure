@@ -59,15 +59,26 @@ def test_v21_method_loaded_by_bound_node(env):
 
 
 def test_natural_language_intake_does_not_need_fact_approval(env):
+    """自然语言事项凭摘要原句登记事实；判定性事实先经独立语义复核，但不需要用户事实确认。"""
     c,tokens,_,_=env
     current=c.post('/api/events',json={'company_id':'demo-chinext','kind':'board_resolution','title':'模拟自然语言事项',
         'summary':'模拟议案须经股东会表决。','facts':{'event_date':'2026-09-08'},'request_id':str(uuid4())}).json()
     value=candidate('2026-09-08');value['facts']=[{'key':'requires_shareholder_approval','value':'须经股东会表决',
         'status':'user_statement','source_ref':'summary','quote':'模拟议案须经股东会表决。','observed_at':'2026-09-08'}]
-    result=adopt(c,current,tokens[0],value)
-    assert result.status_code==200,result.text
-    assert 'facts_confirmed' not in result.json()['facts']
-    assert not result.json().get('approval_records')
+    task,lease=claimed(c,current,tokens[0])
+    def evaluate(**extra):
+        return post(c,current,f"agent-tasks/{task['id']}/evaluate",tokens[0],claim_id=lease['claim_id'],
+                    input_fingerprint=lease['input_fingerprint'],result=value,**extra)
+    first=evaluate();assert first.status_code==200,first.text
+    assert first.json()['outcome']=='review_pending',first.text
+    items=first.json()['gate']['semantic_review']
+    assert [i['item_id'] for i in items]==['fact:requires_shareholder_approval']
+    verdicts=[{'item_id':i['item_id'],'verdict':'supported','reason':'模拟复核：事实值与事项说明原句一致'} for i in items]
+    second=evaluate(semantic_review=verdicts);assert second.status_code==200,second.text
+    assert second.json()['outcome']=='waiting_approval',second.text
+    saved=latest(c,current)
+    assert saved['assessment'] and 'facts_confirmed' not in saved['facts']
+    assert not saved.get('approval_records')
     assert post(c,current,'agent-tasks',stage='plan',instruction='模拟越过确认').status_code==409
 
 
@@ -336,16 +347,15 @@ def test_word_gate_rereads_real_file_before_confirmation(env):
     assert confirm_stage(c,current,'word',artifact_id=artifact['id'],visual_review='reviewed',content_review='reviewed').status_code==409
 
 
-def test_retry_cap_is_persisted_and_agent_cannot_reset_it(env):
+def test_repeated_repairs_keep_evidence_gates_without_a_numerical_stop(env):
     c,tokens,_,_=env;current=event(c);task,lease=claimed(c,current,tokens[0]);value=candidate()
     value['matters'][0]['reasoning_items'][0]['quote']='模拟不存在的条文原句'
     assert submit(c,current,task,lease,tokens[0],value).status_code==200
-    for _ in range(3):assert post(c,current,f"agent-tasks/{task['id']}/adopt").status_code==409
+    for _ in range(6):assert post(c,current,f"agent-tasks/{task['id']}/adopt").status_code==409
     saved=latest(c,current)
-    assert saved['stage']=='manual_escalation' and saved['escalation']['node']=='assessment'
+    assert saved['stage']!='manual_escalation' and not saved.get('escalation')
     assert saved['agent_tasks'][-1]['result']['summary']==value['summary']
     assert post(c,current,'reopen',tokens[0],stage='assessment',reason='试图重置').status_code==403
-    assert post(c,current,'agent-tasks',stage='assessment',instruction='换任务逃逸').status_code==409
 
 
 def test_shared_contract_change_invalidates_confirmed_method(env):

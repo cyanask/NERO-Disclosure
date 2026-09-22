@@ -1,6 +1,16 @@
 """V1 HTTP transport/edit regressions after removal of the old approval workflow."""
 from uuid import uuid4
+from fastapi.staticfiles import StaticFiles
 from test_agent_tasks import env,event,latest,post
+
+
+def assert_response_headers(response, web=False):
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.headers['x-content-type-options'] == 'nosniff'
+    assert response.headers['x-frame-options'] == 'DENY'
+    if web:
+        assert response.headers['pragma'] == 'no-cache'
+        assert response.headers['expires'] == '0'
 
 
 def test_csrf_origin_and_host_remain_required(env):
@@ -47,4 +57,43 @@ def test_streamed_large_request_cannot_bypass_size_limit(env):
         yield b'{"name":"'
         yield b'x'*1000001
         yield b'"}'
-    assert c.post('/api/events',content=body(),headers={'Content-Type':'application/json'}).status_code==413
+    response=c.post('/api/events',content=body(),headers={'Content-Type':'application/json'})
+    assert response.status_code==413
+    assert_response_headers(response)
+
+
+def test_response_headers_cover_success_static_and_handled_errors(env):
+    c,_,root,_=env
+    web_root=root/'frontend-test';web_root.mkdir()
+    (web_root/'bundle.js').write_text('window.synthetic = true;')
+    c.app.mount('/test-assets',StaticFiles(directory=web_root),name='test-assets')
+
+    api_response=c.get('/api/meta')
+    assert api_response.status_code==200
+    assert_response_headers(api_response)
+    js_response=c.get('/test-assets/bundle.js')
+    assert js_response.status_code==200 and 'window.synthetic = true;' in js_response.text
+    assert_response_headers(js_response, web=True)
+
+    host_error=c.get('/api/meta',headers={'Host':'elsewhere.example'})
+    assert host_error.status_code==403
+    assert_response_headers(host_error)
+    origin_error=c.get('/api/meta',headers={'Origin':'https://elsewhere.example'})
+    assert origin_error.status_code==403
+    assert_response_headers(origin_error)
+
+    length_error=c.post('/api/events',content=b'{}',headers={'Content-Type':'application/json','Content-Length':'1000001'})
+    assert length_error.status_code==413
+    assert_response_headers(length_error)
+
+    validation_error=c.get('/api/chat/sessions',params={'board':'chinext','limit':'invalid'})
+    assert validation_error.status_code==422
+    assert_response_headers(validation_error)
+
+    retired_error=c.post('/api/events/synthetic/plan',json={})
+    assert retired_error.status_code==410
+    assert_response_headers(retired_error)
+
+    not_found=c.get('/route-that-does-not-exist')
+    assert not_found.status_code==404
+    assert_response_headers(not_found)

@@ -57,3 +57,12 @@
 .governance-page .service-restart-button.ant-btn{margin-left:6px;background:#263b38;border-color:#263b38;color:#fff;font-weight:500}
 .governance-page .service-restart-button.ant-btn:not(:disabled):hover{background:#162b28;border-color:#162b28;color:#fff}
 .governance-page .service-restart-button.ant-btn:disabled{background:#e0e4e1;border-color:#d6dcd7;color:#87928c}
+
+/* Activity and deliverables share the library's compact row geometry. */
+.compact-operational-table .ant-btn{height:24px;min-height:24px;line-height:22px;font-size:13px;padding-block:0}
+.compact-operational-table .ant-btn-link{padding-inline:0}
+.compact-operational-table .operational-record-name{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.compact-operational-table .record-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compact-operational-table .operational-record-link{max-width:100%;min-width:0;text-align:left}
+.compact-operational-table .ant-tag{flex:none;margin-inline-end:0;font-size:11px;line-height:18px}
+.compact-operational-table .status-text{white-space:nowrap}

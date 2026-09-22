@@ -44,11 +44,14 @@ def mount(app,ctx,load,read_event):
             if event['revision']!=body['expected_revision']:raise HTTPException(409,'事项版本已变化，请重新读取')
             blocked=None
             if action=='advance':
-                receipt=gates.evaluate(event,ctx.seeds,body['stage'],artifact_directory=ctx.directory)
-                event['verification']=receipt
-                if receipt['status']=='PASS':gates.advance(event,ctx.seeds,body['stage'],artifact_directory=ctx.directory)
-                else:
-                    blocked={'message':'Gate 已阻断后续步骤','gate':receipt}
+                try:
+                    receipt=gates.advance(event,ctx.seeds,body['stage'],artifact_directory=ctx.directory)
+                    event['verification']=receipt
+                except HTTPException as exc:
+                    if exc.status_code!=409 or not isinstance(exc.detail,dict) or 'gate' not in exc.detail:raise
+                    blocked=exc.detail
+                    receipt=blocked['gate']
+                    event['verification']=receipt
                     failed_attempt(event,body['stage'],receipt)
             elif action=='human_confirmation':
                 if body['stage']=='word':
@@ -142,6 +145,17 @@ def mount(app,ctx,load,read_event):
     @app.post('/api/events/{event_id}/artifacts')
     def artifact_upload(event_id: str,payload: m.ArtifactUpload,request: Request):
         return gated_write(event_id,payload,request,'artifact_upload')
+
+    @app.get('/api/events/{event_id}/artifacts/{artifact_id}/preview')
+    def artifact_preview(event_id: str,artifact_id: str,request: Request):
+        ctx.security.actor(request)
+        event=read_event(event_id)
+        artifact=next((a for a in event.get('artifacts',[]) if a['id']==artifact_id),None)
+        if not artifact:raise HTTPException(404,'交付物不存在')
+        from .document_files import inspect
+        raw=artifacts.path(ctx.directory,artifact).read_bytes()
+        if hashlib.sha256(raw).hexdigest()!=artifact['sha256']:raise HTTPException(409,'交付文件已变化，不能预览该登记版本')
+        return {'text':inspect(raw)['text'],'notice':'这是该版本 Word 的正文预览；文件仍须按实际内容审阅。'}
 
     @app.get('/api/events/{event_id}/artifacts/{artifact_id}/file')
     def artifact_file(event_id: str,artifact_id: str,request: Request):

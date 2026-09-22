@@ -1,0 +1,22 @@
+{
+  "schema": "nero.disclosure.release-baseline.v1",
+  "version": "1.0.1",
+  "build_number": "2026091901",
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "payload_manifests": {
+    "arm64": {
+      "payload": {
+        "sha256": "9e3e05afedcb5434f11f4b60c90dab74de3a46eeb016dd1d8c2a4803d49d25f4"
+      }
+    },
+    "x86_64": {
+      "payload": {
+        "sha256": "1956919fa1da59bdc63162f6bfca115e2096ba7d82c15bfaca37394bda941fa8"
+      }
+    }
+  },
+  "note": "差分工具所需的冻结载荷哈希；旧版应用和完整新版应用需另行提供，本仓库不附带安装介质。"
+}

@@ -58,14 +58,18 @@ def test_same_task_repair_retains_candidate_and_stops_at_human_gate(env):
     assert not saved.get('approval_records')
 
 
-def test_repair_budget_and_stale_input_remain_enforced(env):
+def test_repeated_repairs_keep_the_gate_and_stale_input_stays_rejected(env):
+    """同一无效候选可反复退回修订，没有数值上限或人工升级节点；输入变化仍拒绝旧候选。"""
     c,tokens,_,_=env;e=real_event(c);task,lease=claimed(c,e,tokens[0]);v=candidate()
     v['assessment_as_of']='2000-01-01'
-    for _ in range(3):r=evaluate(c,e,task,lease,tokens[0],v);assert r.status_code==200,r.text
-    assert r.json()['outcome']=='blocked' and latest(c,e)['escalation']
+    for _ in range(3):
+        r=evaluate(c,e,task,lease,tokens[0],v);assert r.status_code==200,r.text
+        assert r.json()['outcome']=='revise',r.text
+    saved=latest(c,e)
+    assert saved['stage']!='manual_escalation' and not saved.get('escalation')
     assert post(c,e,'agent-tasks',stage='assessment').status_code==409
-    other=real_event(c);t,l=claimed(c,other,tokens[0]);saved=latest(c,other)
-    assert c.patch('/api/events/'+other['id'],json={'expected_revision':saved['revision'],'summary':'事实变化'}).status_code==200
+    other=real_event(c);t,l=claimed(c,other,tokens[0]);current=latest(c,other)
+    assert c.patch('/api/events/'+other['id'],json={'expected_revision':current['revision'],'summary':'事实变化'}).status_code==200
     assert evaluate(c,other,t,l,tokens[0],candidate()).status_code==409
 
 
@@ -181,6 +185,7 @@ def test_model_event_read_keeps_business_facts_without_replaying_history(client)
         emit({'type':'started'});value=bridge('read_event',{})['data']
         assert value['id']==e['id'] and value['facts']==e['facts']
         assert 'audit' not in value and 'agent_tasks' not in value
+        emit({'type':'assistant','message':0,'text':'已按当前事项事实回答。','stopReason':'stop'})
         emit({'type':'done'})
     runtime.runner=runner;r,_=send(c,s,e);out=settled(c,r)
     assert out['run']['status']=='completed'

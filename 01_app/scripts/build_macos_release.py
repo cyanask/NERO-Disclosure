@@ -15,8 +15,9 @@ sys.path.insert(0, str(APP))
 from backend.knowledge_packages import digest, load
 from scripts.refresh_knowledge_packages import refresh
 from scripts.macos_bundle import BUNDLE_ID
+from scripts.release_version import current as released_version
 
-VERSION = '1.0.0'
+VERSION = released_version()
 APP_NAME = 'NERO 信披系统.app'
 SKIP = {'.git', '__pycache__', '.pytest_cache', '.DS_Store', 'node_modules', '.venv'}
 MACH = {b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf'}
@@ -37,11 +38,15 @@ def copy_source(destination):
         source=APP/relative
         if source.exists():shutil.copytree(source,destination/relative,ignore=ignored)
     for relative in ('requirements.txt','requirements.lock.txt','pytest.ini','frontend/index.html','frontend/package.json',
-                     'frontend/package-lock.json','frontend/tsconfig.json','frontend/vite.config.ts',
-                     'config/pi-models.example.json','config/model-contract.json','config/workspace-layout.json'):
+                     'frontend/package-lock.json','frontend/tsconfig.json','frontend/vite.config.ts'):
         source=APP/relative
         if source.is_file():
             target=destination/relative;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
+    # The configuration directory ships whole: the app reads the model contract,
+    # the workspace layout and the iteration records shown on the version page.
+    config=destination/'config';config.mkdir(parents=True,exist_ok=True)
+    for source in sorted((APP/'config').glob('*.json')):
+        shutil.copy2(source,config/source.name)
     for target in sorted(destination.rglob('*')):
         if target.is_file():
             relative=target.relative_to(destination).as_posix()
@@ -125,7 +130,7 @@ def native_binaries(bundle,arch,cache):
 
 
 def icon(bundle,work):
-    source=APP/'frontend/public/disclosure-window-a.png'
+    source=APP/'frontend/public/disclosure-window-a-transparent.png'
     folder=work/'AppIcon.iconset';folder.mkdir()
     for size in (16,32,128,256,512):
         for factor,suffix in ((1,''),(2,'@2x')):
@@ -160,6 +165,9 @@ def payload_manifest(bundle,metadata):
 
 
 def build(args):
+    version=getattr(args,'version',VERSION)
+    build_number=getattr(args,'build_number','2026091703')
+    software_only=getattr(args,'software_only',False)
     output=args.output.resolve()
     if output.exists():raise RuntimeError('构建目标已存在，拒绝覆盖：'+str(output))
     output.mkdir(parents=True)
@@ -178,22 +186,23 @@ def build(args):
     native_binaries(bundle,args.arch,APP.parent/'03_local/cache/macos-release'/('swift-'+args.arch))
     icon(bundle,work)
     info={'CFBundleIdentifier':BUNDLE_ID,'CFBundleName':'NERO 信披系统','CFBundleDisplayName':'NERO 信披系统',
-          'CFBundleExecutable':'NERO Disclosure','CFBundlePackageType':'APPL','CFBundleShortVersionString':VERSION,
-          'CFBundleVersion':'2026091703','LSMinimumSystemVersion':'13.5','NSHighResolutionCapable':True,
+          'CFBundleExecutable':'NERO Disclosure','CFBundlePackageType':'APPL','CFBundleShortVersionString':version,
+          'CFBundleVersion':build_number,'LSMinimumSystemVersion':'13.5','NSHighResolutionCapable':True,
           'CFBundleIconFile':'AppIcon.icns','NSPrincipalClass':'NSApplication'}
     (bundle/'Contents/Info.plist').write_bytes(plistlib.dumps(info))
-    knowledge_rows=copy_knowledge(APP.parent/'02_knowledge',media/'02_knowledge')
-    load(media/'02_knowledge',code,full=True)
-    metadata={'schema':'nero.disclosure.macos-release.v1','version':VERSION,'architecture':args.arch,
+    knowledge_rows=[] if software_only else copy_knowledge(APP.parent/'02_knowledge',media/'02_knowledge')
+    if not software_only:load(media/'02_knowledge',code,full=True)
+    metadata={'schema':'nero.disclosure.macos-release.v1','version':version,'architecture':args.arch,
               'build_configuration':'Release','minimum_macos':'13.5',
               'developer_id_signed':args.identity!='-','notarized':False,
               'hardened_runtime':args.identity!='-',
               'built_at':datetime.now(timezone.utc).isoformat(),
-              'knowledge_package':'chinext-disclosure-shared','personal_data_included':False,
+              'knowledge_package':None if software_only else 'chinext-disclosure-shared','personal_data_included':False,
+              'software_only':software_only,
               'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=APP,text=True).strip()}
     (code/'MACOS_RELEASE.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n')
     # Record immutable software separately from the editable knowledge snapshot.
-    manifest={'schema_version':'nero.disclosure.manifest.v1','product':'NERO_Disclosure','version':VERSION,
+    manifest={'schema_version':'nero.disclosure.manifest.v1','product':'NERO_Disclosure','version':version,
               'scope':'source','path_base':'app','producer':{'name':'NERO','label':'NERO 出品'},
               'files_count':len(source_rows),'files':source_rows}
     (code/'BUILD_MANIFEST.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
@@ -209,7 +218,7 @@ def build(args):
             'knowledge_files':knowledge_rows,'code_signing_verified':True}
     if args.dmg:
         suffix='-unsigned' if args.identity=='-' else '-unnotarized'
-        image=output/f'NERO-Disclosure-{VERSION}-macOS-{args.arch}{suffix}.dmg'
+        image=output/f'NERO-Disclosure-{version}-macOS-{args.arch}{suffix}.dmg'
         run(['hdiutil','create','-volname','NERO 信披系统','-srcfolder',media,'-format','UDZO',image])
         result.update(dmg=str(image),dmg_sha256=digest(image),dmg_bytes=image.stat().st_size)
         run(['hdiutil','verify',image])
@@ -226,6 +235,9 @@ def main():
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--identity',default='-',help='Developer ID；默认只作 ad-hoc 完整性签名')
     parser.add_argument('--dmg',action='store_true')
+    parser.add_argument('--version',default=VERSION)
+    parser.add_argument('--build-number',default='2026091703')
+    parser.add_argument('--software-only',action='store_true',help='仅构建程序，用于已有资料目录的更新包')
     build(parser.parse_args())
 
 

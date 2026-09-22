@@ -49,7 +49,7 @@ def test_pi_packet_has_no_fixed_round_deadline(client):
     c,runtime,_=client;s,e=new_session(c);seen=[]
     def runner(packet,emit,bridge,stop):
         seen.append(packet);emit({'type':'started'});emit({'type':'assistant','text':'公开回复','message':0});emit({'type':'done'})
-    runtime.runner=runner;r,_=send(c,s,e);assert settled(c,r)['run']['status']=='completed'
+    runtime.runner=runner;r,_=send(c,s,e);assert settled(c,r)['run']['status']=='incomplete'
     assert seen[0]['max_round_seconds'] is None
 
 
@@ -85,7 +85,12 @@ def test_chat_identity_project_skill_and_model_switch(client):
     c,runtime,_=client;s,e=new_session(c);seen=[]
     def runner(packet,emit,bridge,stop):
         seen.append(packet);emit({'type':'started'});emit({'type':'assistant','text':'公开回复','message':0});emit({'type':'done'})
-    runtime.runner=runner
+    runtime.semantic_review=lambda rid,run,items,stop: ([{'item_id':r['item_id'],'verdict':'supported' if r['value']=='公开回复' else 'insufficient','reason':'固定隔离回复，不含业务结论'} for r in items],'fixture')
+    original=runner
+    def checked(packet,emit,bridge,stop):
+        original(packet,emit,bridge,stop)
+        bridge('submit_consultation',{'text':'公开回复','basis':[]})
+    runtime.runner=checked
     r,_=send(c,s,e);a=settled(c,r)
     assert a['run']['status']=='completed' and a['run']['skill_status']=='loaded'
     assert a['run']['skill']['id']=='disclosure-consultation'
@@ -93,7 +98,7 @@ def test_chat_identity_project_skill_and_model_switch(client):
     assert b['run']['model']['id']=='offline-b' and a['run']['model']['id']=='offline-a'
     assert '公开回复' in json.dumps(seen[1]['history'],ensure_ascii=False)
     assert not latest(c,e)['assessment']
-    assert [x['name'] for x in seen[0]['tools']]==['read_event','search_library','read_library','request_information','read_document_context','read_document','knowledge_web_search','knowledge_download','knowledge_download_read','read_attachment']
+    assert {'read_event','search_library','read_library','submit_consultation','read_document_context','read_document','knowledge_web_search','knowledge_download','knowledge_download_read','read_attachment','make_word','save_announcement','assess_document_readiness','submit_candidate'} <= {x['name'] for x in seen[0]['tools']}
 
 
 def test_stage_load_submit_verify_and_human_boundary(client):
@@ -160,18 +165,18 @@ def test_model_and_board_scope_fail_closed(client):
     r=c.post('/api/chat/sessions',json={'event_id':e['id'],'board':'innovation','title':'错误板块','request_id':str(uuid4())});assert r.status_code==409
     def attempt(p,emit,bridge,stop):
         emit({'type':'started'})
-        for name,args in [('read_event',{'event_id':'other'}),('human.confirm',{}),('submit_candidate',{'result':{}}),('make_word',{})]:
+        for name,args in [('read_event',{'event_id':'other'}),('human.confirm',{})]:
             with pytest.raises(HTTPException) as exc:bridge(name,args)
             assert exc.value.status_code==403
         emit({'type':'done'})
-    runtime.runner=attempt;r,_=send(c,s,e);assert settled(c,r)['run']['status']=='completed'
+    runtime.runner=attempt;r,_=send(c,s,e);assert settled(c,r)['run']['status']=='incomplete'
 
 
 def test_browser_security_csrf_and_agent_cannot_dispatch(client):
     c,runtime,_=client;s,e=new_session(c)
     token='retired-external-credential'
     r,_=send(c,s,e)
-    assert settled(c,r)['run']['status']=='completed'
+    assert settled(c,r)['run']['status']=='incomplete'
     assert c.get('/api/chat/models',headers={'Authorization':'Bearer '+token}).status_code==403
     assert c.post('/api/chat/runs/'+r.json()['id']+'/cancel',headers={'X-CSRF-Token':'bad'},json={}).status_code==403
     request=runtime.route('event.get',{'event_id':e['id']});assert request['id']==e['id']
@@ -242,6 +247,8 @@ def test_legacy_resume_registered_script_keeps_its_historical_confirmation_contr
     artifact=next(a for a in current['artifacts'] if a['id']==artifact_id)
     content=c.get(f"/api/events/{e['id']}/artifacts/{artifact_id}/file").content
     assert hashlib.sha256(content).hexdigest()==artifact['sha256']
+    preview=c.get(f"/api/events/{e['id']}/artifacts/{artifact_id}/preview")
+    assert preview.status_code==200 and preview.json()['text'].strip()
     assert artifact['verification']['visual_acceptance']=='not_verified'
     assert not any(a['node']=='word' and a['state']=='current' for a in current['approval_records'])
     kinds=[x['kind'] for x in result['events']]

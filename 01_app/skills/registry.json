@@ -12,7 +12,9 @@
           "path": "skills/disclosure-contract.md",
           "sha256": "b97a925225e1f77421619cbe3c329d80572e34b42a87ac93e9e7de22888ce771"
         }
-      ]
+      ],
+      "title": "披露义务判断",
+      "description": "按事实和现行规则判断是否披露、披露时点、程序及未知项。"
     },
     "plan": {
       "id": "disclosure-content-planning",
@@ -24,7 +26,9 @@
           "path": "skills/disclosure-contract.md",
           "sha256": "b97a925225e1f77421619cbe3c329d80572e34b42a87ac93e9e7de22888ce771"
         }
-      ]
+      ],
+      "title": "披露内容规划",
+      "description": "形成文件清单、内容要求、资料缺口及来源关系。"
     },
     "draft": {
       "id": "neeq-disclosure-draft",
@@ -36,7 +40,9 @@
           "path": "skills/disclosure-contract.md",
           "sha256": "b97a925225e1f77421619cbe3c329d80572e34b42a87ac93e9e7de22888ce771"
         }
-      ]
+      ],
+      "title": "模板与正文制作",
+      "description": "按已选事项流程的模板、事实和依据准备正文，保留版本与确认边界。"
     },
     "template": {
       "id": "neeq-disclosure-draft",
@@ -48,7 +54,9 @@
           "path": "skills/disclosure-contract.md",
           "sha256": "b97a925225e1f77421619cbe3c329d80572e34b42a87ac93e9e7de22888ce771"
         }
-      ]
+      ],
+      "title": "模板与正文制作",
+      "description": "按已选事项流程的模板、事实和依据准备正文，保留版本与确认边界。"
     }
   },
   "methods": {
@@ -57,19 +65,18 @@
       "version": "1.0.1",
       "path": "skills/disclosure-consultation/SKILL.md",
       "sha256": "b6eda40b08b19a85712e661764fe98cacd1243a65ac8df52ca6feab2b5a10ce5",
-      "references": []
+      "references": [],
+      "title": "信息披露咨询",
+      "description": "研究并解释信披业务问题，核对规则、条件、例外及证据。"
     },
     "announcement": {
       "id": "disclosure-announcement-drafting",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "path": "skills/disclosure-announcement-drafting/SKILL.md",
-      "sha256": "bdd4e37e914c349f290c1924a25329c25013d083b43a78a5d75eeead17f26ca1",
-      "references": [
-        {
-          "path": "skills/disclosure-consultation/SKILL.md",
-          "sha256": "b6eda40b08b19a85712e661764fe98cacd1243a65ac8df52ca6feab2b5a10ce5"
-        }
-      ]
+      "sha256": "3116bb514625b38acfb9a7d836d1e8b5e4c64394c315efaa728b0e584a6f6a53",
+      "references": [],
+      "title": "公告起草与修订",
+      "description": "按公告文种组织完整正文、必要要素、缺口和依据。"
     }
   }
 }

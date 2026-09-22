@@ -13,9 +13,9 @@ export async function uploadAttachments(sid:string,files:File[]):Promise<string[
  return [...new Set(identities)];
 }
 
-export default function AttachmentPicker({files,disabled,onChange,onError}:{files:File[];disabled:boolean;onChange:(files:File[])=>void;onError:(message:string)=>void}){
+export default function AttachmentPicker({files,disabled,onChange,onError,compact=false}:{files:File[];disabled:boolean;onChange:(files:File[])=>void;onError:(message:string)=>void;compact?:boolean}){
  const input=useRef<HTMLInputElement>(null);
- return <div className="attachment-picker">
+ return <div className={`attachment-picker${compact?' compact':''}`}>
   <input ref={input} type="file" accept=".docx,.xlsx" multiple hidden aria-label="选择Word或Excel补充资料" onChange={e=>{
    const incoming=Array.from(e.target.files||[]);e.target.value='';
    if(files.length+incoming.length>8){onError('每轮最多选择8份附件。');return;}
@@ -23,9 +23,9 @@ export default function AttachmentPicker({files,disabled,onChange,onError}:{file
    if(invalid){onError(`附件“${invalid.name}”须为非空的 .docx/.xlsx，且不超过20MB。`);return;}
    onChange([...files,...incoming]);
   }}/>
-  <Button size="small" icon={<PaperClipOutlined/>} disabled={disabled} onClick={()=>input.current?.click()}>添加资料</Button>
-  <span className="attachment-hint">Word / Excel · 发送后用于本会话资料核对</span>
-  {!!files.length&&<ul className="attachment-files">{files.map((file,index)=><li key={`${file.name}-${index}`}>
+  <Button size="small" icon={<PaperClipOutlined/>} aria-label="添加Word或Excel资料" title="添加 Word / Excel，发送后用于本会话资料核对" disabled={disabled} onClick={()=>input.current?.click()}>{compact?null:'添加资料'}</Button>
+  {!compact&&<span className="attachment-hint">Word / Excel · 发送后用于本会话资料核对</span>}
+  {!compact&&!!files.length&&<ul className="attachment-files">{files.map((file,index)=><li key={`${file.name}-${index}`}>
    <span title={file.name}>{file.name}</span><Button type="text" size="small" icon={<CloseOutlined/>} disabled={disabled} aria-label={`移除待发送附件：${file.name}`} onClick={()=>onChange(files.filter((_,n)=>n!==index))}/>
   </li>)}</ul>}
  </div>;

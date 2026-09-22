@@ -1,15 +1,36 @@
 """Public-only acquisition with original bytes and page-linked extraction."""
-import hashlib,http.client,ipaddress,json,re,socket,ssl,subprocess,sys
+import hashlib,http.client,ipaddress,json,re,socket,ssl,subprocess,sys,time
 from pathlib import Path
-from urllib.parse import urlsplit,urljoin,urlencode,quote
+from urllib.parse import parse_qs,urlsplit,urljoin,urlencode,quote
 from xml.etree import ElementTree
+from html import unescape
 from datetime import datetime,timezone
 from fastapi import HTTPException
-from .library_admin import atomic,official_url
+from .library_admin import atomic
 from . import paths as workspace_paths
 from .document_extract import TextParser, extract as extract_document
 
 MAX_BYTES=20*1024*1024
+SEARCH_ATTEMPTS=3
+SEARCH_RETRY_PAUSE=1.5
+
+
+def public_url(value):
+    """Public acquisition policy, independent of source authority/admission."""
+    if not isinstance(value,str) or any(ord(c)<32 for c in value):return False
+    try:
+        u=urlsplit(value)
+        return bool(u.scheme=='https' and u.hostname and not u.username and not u.password and u.port in (None,443))
+    except ValueError:return False
+
+
+def candidate_url(value):
+    """Search hits may be HTTP; acquisition still requires HTTPS at download time."""
+    if not isinstance(value,str) or any(ord(c)<32 for c in value):return False
+    try:
+        u=urlsplit(value)
+        return bool(u.scheme in ('http','https') and u.hostname and not u.username and not u.password and u.port in (None,80,443))
+    except ValueError:return False
 
 
 def public_addresses(host):
@@ -32,9 +53,9 @@ def public_addresses(host):
 
 def fetch(url,search=False):
     for _ in range(5):
+        if not public_url(url):
+            raise HTTPException(422,'公开下载须为不含凭据的 HTTPS 地址，使用标准端口')
         u=urlsplit(url);host=(u.hostname or '').lower()
-        if not (official_url(url) or search and host in ('www.bing.com','cn.bing.com') and u.scheme=='https') or u.port not in (None,443):
-            raise HTTPException(422,'仅接受官方 HTTPS 原件；搜索入口限定为已登记公开搜索服务')
         addresses=public_addresses(host)
         connection=http.client.HTTPSConnection(host,timeout=20,context=ssl.create_default_context())
         try:
@@ -60,15 +81,62 @@ def fetch(url,search=False):
     raise HTTPException(409,'公开来源重定向过多')
 
 
+RESULT_ANCHOR=re.compile(r"<a\b[^>]*class=['\"](?:result-link|result__a)['\"][^>]*>(.*?)</a>",re.S)
+RESULT_HREF=re.compile(r'href="([^"]+)"')
+RESULT_SNIPPET=re.compile(r"<[^>]*class=['\"](?:result-snippet|result__snippet)['\"][^>]*>(.*?)</(?:a|td)>",re.S)
+MARKUP=re.compile(r'<[^>]+>')
+
+
+def plain_text(value):
+    return re.sub(r'\s+',' ',unescape(MARKUP.sub('',value))).strip()
+
+
+def result_target(link):
+    """Unwrap a provider redirect; only the resolved public address is a candidate."""
+    link=unescape(link)
+    if link.startswith('//'):link='https:'+link
+    parts=urlsplit(link);host=(parts.hostname or '').lower()
+    if host=='duckduckgo.com' or host.endswith('.duckduckgo.com'):return (parse_qs(parts.query).get('uddg') or [''])[0]
+    return link
+
+
+def duckduckgo_search(query):
+    """Primary channel; a throttled endpoint answers 202, so failed attempts are retried briefly."""
+    url='https://lite.duckduckgo.com/lite/?'+urlencode({'q':query})
+    for attempt in range(SEARCH_ATTEMPTS):
+        try:
+            raw,_,_=fetch(url,search=True);break
+        except HTTPException:
+            if attempt==SEARCH_ATTEMPTS-1:raise
+            time.sleep(SEARCH_RETRY_PAUSE)
+    page=raw.decode('utf-8',errors='replace');items=[];anchors=list(RESULT_ANCHOR.finditer(page))
+    for index,anchor in enumerate(anchors):
+        link=RESULT_HREF.search(anchor.group(0))
+        target=result_target(link.group(1)) if link else ''
+        if not candidate_url(target):continue
+        # Keep each snippet inside its own result; a result without one must not borrow the next.
+        limit=anchors[index+1].start() if index+1<len(anchors) else len(page)
+        snippet=RESULT_SNIPPET.search(page,anchor.end(),limit)
+        items.append({'title':plain_text(anchor.group(1)),'url':target,'snippet':plain_text(snippet.group(1)) if snippet else ''})
+        if len(items)>=15:break
+    return items
+
+
+def bing_search(query):
+    """Secondary channel; one provider returning nothing is a miss, not absence."""
+    raw,_,_=fetch('https://www.bing.com/search?'+urlencode({'format':'rss','q':query}),search=True)
+    tree=ElementTree.fromstring(raw)
+    return [{'title':n.findtext('title'),'url':n.findtext('link'),'snippet':n.findtext('description')} for n in tree.findall('.//item') if candidate_url(n.findtext('link'))]
+
+
 def search(query,board):
     if not isinstance(query,str) or not 1<=len(query.strip())<=300:raise HTTPException(422,'公开检索关键词无效')
-    domains='site:gov.cn OR site:szse.cn OR site:sse.com.cn OR site:neeq.com.cn OR site:bse.cn OR site:cninfo.com.cn'
-    url='https://www.bing.com/search?'+urlencode({'format':'rss','q':query+' '+domains})
-    try:
-        raw,_,_=fetch(url,search=True);tree=ElementTree.fromstring(raw)
-        items=[{'title':n.findtext('title'),'url':n.findtext('link'),'snippet':n.findtext('description')} for n in tree.findall('.//item') if official_url(n.findtext('link'))]
-    except (HTTPException,ElementTree.ParseError,OSError):items=[]
-    if items:return {'items':items[:15],'board':board,'coverage':'公开搜索候选，尚未核对原件、版本及完整覆盖','query':query,'strategy':'public_search'}
+    items=[];channel=''
+    for name,collect in (('duckduckgo_html',duckduckgo_search),('bing_rss',bing_search)):
+        try:candidates=collect(query)
+        except (HTTPException,ElementTree.ParseError,OSError,UnicodeDecodeError):candidates=[]
+        if candidates:items,channel=candidates,name;break
+    if items:return {'items':items[:15],'board':board,'coverage':'公开搜索候选，尚未核对原件、版本及完整覆盖','query':query,'strategy':'public_search','channel':channel}
     # A search-provider miss is not absence. Supply freshly read official directory links,
     # explicitly labelled as navigation rather than law/case search hits.
     if board=='company_lookup':
@@ -82,10 +150,10 @@ def search(query,board):
     seen=set();links=[]
     for item in parser.link_items:
         target=urljoin(final,item['url']);title=item['title'].strip()
-        if official_url(target) and not urlsplit(target).hostname.startswith('biz.') and 'usepassword' not in target and target not in seen and re.search('规则|法规|公告|信息披露|业务指南|创业板',title):
+        if public_url(target) and not urlsplit(target).hostname.startswith('biz.') and 'usepassword' not in target and target not in seen and re.search('规则|法规|公告|信息披露|业务指南|创业板',title):
             seen.add(target);links.append({'title':title,'url':target,'kind':'official_directory'})
     return {'items':links[:25] or [{'title':'官方公开网站入口','url':final,'kind':'official_entry'}],'board':board,'query':query,'strategy':'official_navigation_fallback',
-            'coverage':'公开搜索没有提供可用官方结果。下列是本次读取的官方目录入口，不是匹配法规或案例；需继续读取目录定位原件，不能据此断言无更新。'}
+            'coverage':'公开搜索没有提供可用结果。下列是本次读取的官方目录入口，不是匹配法规或案例；需继续读取目录定位原件，不能据此断言无更新。'}
 
 
 

@@ -277,3 +277,26 @@ def test_verify_job_without_live_worker_reports_interrupted(client):
     folder=root/'var/governance';folder.mkdir(parents=True,exist_ok=True)
     folder.joinpath('version-verify.json').write_text(json.dumps({'request_id':'stale-job','state':'running','started_at':'2020-01-01T00:00:00+00:00','total':2,'checked':1}))
     assert c.get('/api/governance/version/verify').json()['state']=='interrupted'
+
+
+def test_version_scan_carries_iteration_records_and_survives_broken_file(client):
+    c,runtime,root=client
+    (root/'config').mkdir(exist_ok=True)
+    notes={'schema':'nero.disclosure.release-notes.v1','current':'1.0.1','releases':[
+        {'version':'1.0.1','released_at':'2026-09-18','kind':'程序更新','summary':'直接更新程序。','items':['第一条改动','第二条改动']},
+        {'version':'1.0.0','items':['旧版改动',7,'  ']}]}
+    (root/'config/release-notes.json').write_text(json.dumps(notes,ensure_ascii=False))
+    state=c.post('/api/governance/version/scan').json()
+    assert state['releases']['current']=='1.0.1'
+    assert [row['version'] for row in state['releases']['releases']]==['1.0.1','1.0.0']
+    assert state['releases']['releases'][0]['items']==['第一条改动','第二条改动']
+    assert state['releases']['releases'][0]['kind']=='程序更新'
+    assert state['releases']['releases'][1]['items']==['旧版改动']
+    # A record saved before these notes existed must still show the current file.
+    log=root/'var/governance/last-version.json';record=json.loads(log.read_text('utf-8'));record.pop('releases')
+    log.write_text(json.dumps(record,ensure_ascii=False))
+    assert c.get('/api/governance/version').json()['releases']['current']=='1.0.1'
+    assert c.get('/api/governance/version').json()['scanned_at']==state['scanned_at']
+    (root/'config/release-notes.json').write_text('{ broken')
+    broken=c.post('/api/governance/version/scan').json()
+    assert broken['releases']=={'current':'','releases':[]}

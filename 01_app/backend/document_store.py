@@ -3,7 +3,6 @@ import hashlib
 import json
 import re
 import time
-from pathlib import Path
 from uuid import uuid4
 from fastapi import HTTPException
 from .public_store import atomic
@@ -45,18 +44,14 @@ def load(runtime, sid):
         raise HTTPException(409, '文档版本记录无法读取，未覆盖原记录') from None
 
 
-def version(runtime, sid, document_id, number=None):
-    document = next((d for d in load(runtime, sid)['documents'] if d['id'] == document_id), None)
-    if not document:
-        raise HTTPException(404, '文档不属于当前会话')
+def _version(document, number=None):
     row = next((v for v in document['versions'] if v['version'] == (number or document['current_version'])), None)
     if not row:
         raise HTTPException(404, '文档版本不存在')
     return row
 
 
-def file(runtime, sid, document_id, number=None):
-    row = version(runtime, sid, document_id, number)
+def _file(runtime, sid, row):
     if row.get('format','docx')=='text':
         raise HTTPException(409,'当前版本是公告正文，可随时要求制作 Word')
     if not re.fullmatch(r'[a-f0-9]{64}', str(row.get('sha256', ''))):
@@ -67,14 +62,36 @@ def file(runtime, sid, document_id, number=None):
     return target, row
 
 
-def snapshot(runtime, sid, document_id, number=None):
-    row = version(runtime, sid, document_id, number)
+def _snapshot(runtime, sid, row):
     if not re.fullmatch(r'[a-f0-9]{64}', str(row.get('snapshot_sha256', ''))):
         raise HTTPException(409, '文稿快照标识无效')
     path = folder(runtime, sid) / (row['snapshot_sha256'] + '.json')
-    if path.is_symlink() or not path.is_file() or sha(path.read_bytes()) != row['snapshot_sha256']:
+    if path.is_symlink() or not path.is_file():
         raise HTTPException(409, '文稿快照缺失或内容已变化')
-    return json.loads(path.read_text('utf-8'))
+    raw = path.read_bytes()
+    if sha(raw) != row['snapshot_sha256']:
+        raise HTTPException(409, '文稿快照缺失或内容已变化')
+    try:
+        return json.loads(raw.decode('utf-8'))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise HTTPException(409, '文稿快照内容无效') from None
+
+
+def version(runtime, sid, document_id, number=None):
+    document = next((d for d in load(runtime, sid)['documents'] if d['id'] == document_id), None)
+    if not document:
+        raise HTTPException(404, '文档不属于当前会话')
+    return _version(document, number)
+
+
+def file(runtime, sid, document_id, number=None):
+    row = version(runtime, sid, document_id, number)
+    return _file(runtime, sid, row)
+
+
+def snapshot(runtime, sid, document_id, number=None):
+    row = version(runtime, sid, document_id, number)
+    return _snapshot(runtime, sid, row)
 
 
 def public_version(sid, row):
@@ -86,15 +103,18 @@ def listing(runtime, sid):
     index = load(runtime, sid)
     items = []
     for document in index['documents']:
-        row = version(runtime, sid, document['id'])
+        row = _version(document)
+        text = None
         try:
-            if row.get('format','docx')=='text':snapshot(runtime,sid,document['id'],row['version'])
-            else:file(runtime, sid, document['id'],row['version'])
+            if row.get('format','docx')=='text':
+                text = _snapshot(runtime, sid, row)['text']
+            else:
+                _file(runtime, sid, row)
             available = True
         except HTTPException:
             available = False
         items.append({**public_version(sid, row), 'available': available,
-                      'text':snapshot(runtime,sid,document['id'],row['version'])['text'] if row.get('format')=='text' and available else None,
+                      'text':text if row.get('format')=='text' and available else None,
                       'history': [public_version(sid, v) for v in reversed(document['versions'])]})
     return {'revision': index['revision'], 'items': items}
 

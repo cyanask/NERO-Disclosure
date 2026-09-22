@@ -17,10 +17,10 @@ export function deliveryRows(events:DisclosureEvent[],documents:SessionDocument[
 }
 
 export default function DeliveryTable({rows,busy,onSession,onEvent}:{rows:Delivery[];busy:boolean;onSession:(id:string)=>void;onEvent:(id:string)=>void}){
- return <Table rowKey="id" dataSource={rows} loading={busy} scroll={{x:760}} columns={[
-  {title:'文件名称',render:(_,d)=><span>{d.filename} {d.version!==undefined&&<Tag>v{d.version}</Tag>}</span>},
-  {title:'所属会话／事项',render:(_,d)=>d.archived?<span>{d.sourceTitle} <Tag>会话已归档</Tag></span>:<Button type="link" className="text-link" onClick={()=>d.sessionId?onSession(d.sessionId):onEvent(d.eventId!)}>{d.sourceTitle}</Button>},
-  {title:'状态',width:170,render:(_,d)=><span className="status-text">{d.status}</span>},
-  {title:'操作',width:135,render:(_,d)=><Button href={d.available?d.download:undefined} disabled={!d.available||!d.download}>下载 Word</Button>},
+ return <Table className="compact-library-table compact-operational-table" size="small" tableLayout="fixed" rowKey="id" dataSource={rows} loading={busy} scroll={{x:760}} columns={[
+  {title:'文件名称',width:'45%',render:(_,d)=><span className="operational-record-name"><span className="record-title" title={d.filename}>{d.filename}</span>{d.version!==undefined&&<Tag>v{d.version}</Tag>}</span>},
+  {title:'所属会话／事项',render:(_,d)=>d.archived?<span className="operational-record-name"><span className="record-title" title={d.sourceTitle}>{d.sourceTitle}</span><Tag>会话已归档</Tag></span>:<Button type="link" title={d.sourceTitle} className="text-link operational-record-link" onClick={()=>d.sessionId?onSession(d.sessionId):onEvent(d.eventId!)}><span className="record-title">{d.sourceTitle}</span></Button>},
+  {title:'状态',width:140,render:(_,d)=><span className="status-text">{d.status}</span>},
+  {title:'操作',width:120,render:(_,d)=><Button size="small" href={d.available?d.download:undefined} disabled={!d.available||!d.download}>下载 Word</Button>},
  ]} locale={{emptyText:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无已生成的 Word 文件"/>}}/>;
 }

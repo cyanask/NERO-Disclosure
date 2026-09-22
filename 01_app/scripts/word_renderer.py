@@ -30,7 +30,7 @@ def render_document(packet, template_raw=None):
         return raw
     return render_text(document['text'],document['title'],packet.get('company_name',''),packet['layout'],
                        packet['generated_at'],template_raw=template_raw,
-                       notice='待审阅稿：依据当前资料整理，待补事项及内容、版式须复核；文件生成不代表事项获批或已发布。')
+                       notice=packet.get('notice','待审阅稿：依据当前资料整理，待补事项及内容、版式须复核；文件生成不代表事项获批或已发布。'))
 
 def _font(run,p,size,bold=False):
     wp.apply_run_font(run,latin=p['fonts']['latin'],east_asia=p['fonts']['east_asia'],size_pt=size,bold=bold,color=RGBColor(0,0,0))

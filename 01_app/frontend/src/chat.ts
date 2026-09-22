@@ -6,7 +6,7 @@ export interface PiRun {announcement_assessment?:{disclosure_needed:string;discl
 export interface Receipt {seq:number;run_id:string;at:number;kind:string;body:Record<string,unknown>}
 export const live=(run?:PiRun)=>!!run&&['accepted','running','cancelling'].includes(run.status);
 export const runLabels:Record<string,string>={accepted:'等待启动',running:'执行中',cancelling:'正在停止',completed:'本轮完成',waiting_user:'待补充',waiting_approval:'待人工确认',blocked:'检查阻断',failed:'执行失败',cancelled:'已停止',interrupted:'执行中断',incomplete:'结果未齐备'};
-export const nodeLabels:Record<string,string>={chat:'普通聊天',assessment:'披露判断',plan:'文件与内容规划',template:'模板适配',draft:'公告正文',word:'Word 制作'};
+export const nodeLabels:Record<string,string>={chat:'业务对话',assessment:'披露判断',plan:'文件与内容规划',template:'模板适配',draft:'公告正文',word:'Word 制作'};
 export const receiptLabels:Record<string,string>={user:'用户消息',accepted:'接收执行',process_spawned:'建立进程',started:'Pi 已启动',context_loaded:'冻结上下文',skill_loaded:'装载 Skill',model_input:'发送模型上下文',assistant:'助手消息',model_tool_call:'模型请求工具',tool_requested:'登记工具调用',tool_started:'开始工具执行',tool_returned:'工具返回',tool_failed:'工具失败',model_tool_failed:'模型工具失败',verification:'结果核验',questions:'待补问题',script_started:'运行 Word 脚本',script_returned:'脚本返回',script_failed:'脚本失败',artifact:'Word 文件登记',done:'Pi 结束回执',settled:'本轮状态',cancel_requested:'请求停止',interrupted:'中断恢复',cleanup_pending:'任务占用待核对',capability_unavailable:'资料接口尚未连接'};
 receiptLabels.skill_injected='Skill 已注入 Pi 上下文';
 receiptLabels.failure='失败原因';

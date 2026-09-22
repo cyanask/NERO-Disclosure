@@ -35,6 +35,7 @@ jobs:
         run: |
           python 01_app/scripts/check_source_boundary.py
           python 01_app/scripts/generate_api_docs.py --check
+          python 01_app/scripts/generate_manifest.py
       - name: 默认测试（虚构样例，不需要知识包）
         working-directory: 01_app
         run: python -m pytest -q

@@ -130,7 +130,7 @@
  .conversation-console .session-panel{max-height:110px}
  .conversation-console .chat-heading{padding:8px 14px}
 }
-.sessions-collapsed>.session-list,.sessions-collapsed>.session-footer,.sessions-collapsed>.ant-input-affix-wrapper{display:none}
+.sessions-collapsed>.session-footer,.sessions-collapsed>.ant-input-affix-wrapper{display:none}
 .conversation-layout:has(.sessions-collapsed){grid-template-columns:64px minmax(0,1fr)}
 .sessions-collapsed .session-heading{flex-direction:column;gap:4px;padding:0}
 .session-heading>.ant-btn{padding:3px 4px;font-weight:600}

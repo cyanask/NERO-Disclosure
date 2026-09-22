@@ -8,7 +8,7 @@
 .conversation-navigation .header-progress-trigger{min-width:0;max-width:260px;background:#f0f3f1;border-color:#e1e7e3;padding-inline:8px}
 .header-progress-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .header-progress-dot{width:6px;height:6px;border-radius:50%;background:#869ba2;flex:none}
-.header-progress-trigger.active .header-progress-dot{background:#276c7b}.header-progress-trigger.human .header-progress-dot{background:#94662c}.header-progress-trigger.blocked .header-progress-dot{background:#ac5148}
+.header-progress-trigger.active .header-progress-dot{background:#b33d35}.header-progress-trigger.done .header-progress-dot{background:#2c7a50}.header-progress-trigger.human .header-progress-dot{background:#94662c}.header-progress-trigger.blocked .header-progress-dot{background:#ac5148}
 .header-progress-trigger[data-motion=on] .header-progress-dot{animation:header-progress-pulse 1.8s ease-in-out infinite}
 .header-work-progress-popover{max-width:calc(100vw - 48px)}.header-work-progress-popover .ant-popover-inner{padding:0}.header-progress-content{width:640px;max-width:calc(100vw - 48px);max-height:calc(100vh - 116px);overflow:auto;border-radius:8px;outline:none}.header-progress-content .work-progress{margin:0}.header-progress-content .work-progress-summary>div{min-width:0}
 @keyframes header-progress-pulse{0%,100%{opacity:1}50%{opacity:.35}}@media(prefers-reduced-motion:reduce){.header-progress-dot{animation:none!important}}

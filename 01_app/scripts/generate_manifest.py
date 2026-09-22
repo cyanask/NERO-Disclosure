@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from backend import paths as workspace_paths
+from scripts.release_version import current as released_version
 KNOWLEDGE = workspace_paths.knowledge_of(ROOT)
 LOCAL = workspace_paths.local_of(ROOT)
 LEGACY_EXCLUDE_DIRS = {'.git', '.pytest_cache', '__pycache__', 'var', 'node_modules', '.venv'}
@@ -78,7 +79,7 @@ def main():
     manifest = {
         "schema_version": "nero.disclosure.manifest.v1",
         "product": "NERO_Disclosure",
-        "version": "0.6.0",
+        "version": released_version(),
         "scope": args.scope,
         "path_base": "workspace" if args.scope == 'full' and ROOT.name == '01_app' else "app",
         "producer": {

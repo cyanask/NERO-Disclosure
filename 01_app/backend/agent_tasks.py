@@ -341,9 +341,6 @@ def evaluate_candidate(event, task, payload, actor, seeds):
     else:
         event['verification'] = gate
         failed_attempt(event, task['stage'], gate)
-        if attempt >= 3 and not event.get('escalation'):
-            event['escalation'] = {'node':task['stage'], 'reason':'当前节点已完成初次提交和两次修订，须人工复核'}
-            event['stage'] = 'manual_escalation'
         # 独立语义复核不可用、失效或未覆盖时，模型无法自行修复，必须阻断而不是无限重提。
         hard = any(code.startswith(('law_', 'upstream_', 'scope_', 'skill_', 'semantic_review')) for code in codes)
         outcome = 'blocked' if hard or event.get('escalation') else 'revise'

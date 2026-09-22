@@ -29,7 +29,7 @@ class Send(Strict):
     company_code:str=Field(default='',max_length=6,pattern=r'^\d{6}$|^$')
     text:str=Field(min_length=1,max_length=20000)
     model_key:str=Field(min_length=1,max_length=80)
-    stage:Literal['auto','chat','assessment','plan','template','draft','word']='auto'
+    stage:Literal['auto','chat','assessment','plan','template','draft','word']='chat'
     expected_revision:int=Field(default=0,ge=0)
     request_id:str=Field(min_length=8,max_length=128)
     attachment_ids:list[str]=Field(default_factory=list,max_length=8)
@@ -165,7 +165,9 @@ def mount(app,runtime,security):
     def send(sid:str,payload:Send,request:Request):
         browser(request)
         if not payload.text.strip():raise HTTPException(422,'消息不能为空')
-        return runtime.accept(sid,{**payload.model_dump(),'stage':'auto'})
+        # Browser messages always enter the native controller; legacy stage hints
+        # cannot select a business workflow or confer its object permissions.
+        return runtime.accept(sid,{**payload.model_dump(),'stage':'chat'})
 
     @app.get('/api/chat/runs')
     def runs(request:Request,board:str,limit:int|None=None,offset:int=0,company:str=''):

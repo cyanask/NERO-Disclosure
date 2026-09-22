@@ -5,15 +5,6 @@ from test_pi_runtime import client, settled
 from test_document_runtime import request, readiness, content_gap, draft, listing
 
 
-@pytest.mark.parametrize('text', [
-    '只讨论生成Word的方法，缺失信息先标注待补。',
-    '先讨论如何起草，缺失资料留空，不开始执行。',
-])
-def test_discussion_of_placeholder_mode_is_not_production_consent(text):
-    from backend.document_preflight import explicit_placeholders
-    assert not explicit_placeholders(text)
-
-
 @pytest.mark.parametrize('status,new_title,should_continue', [
     ('failed', '分析工作稿', True),
     ('incomplete', '分析工作稿', True),

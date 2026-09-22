@@ -67,15 +67,22 @@ def test_workflow_auto_route_preserves_human_gate(control):
 
 
 def test_knowledge_query_cannot_write_or_execute_workflow(control):
+    """知识域只开放知识工具；写入形成待用户确认的预览，业务节点提交不属于该域。"""
     c,r,_=control;s=session(c)
+    from backend import library_admin
+    before=[row['id'] for row in library_admin.state(r.root,'laws','chinext')['items']]
     def model(p,emit,bridge,stop):
         reply=bridge('route_request',{'domain':'knowledge','intent':'query','reason':'查询知识库'})
-        assert {x['name'] for x in reply['next_context']['tools']}=={'knowledge_search','knowledge_read','knowledge_web_search','knowledge_download','knowledge_download_read','knowledge_imports','knowledge_history','knowledge_import_read'}
-        with pytest.raises(HTTPException):bridge('knowledge_propose',{'operation':'delete'})
+        from backend.knowledge_ops import tools as knowledge_tools
+        assert {x['name'] for x in reply['next_context']['tools']}=={t['name'] for t in knowledge_tools()}
         with pytest.raises(HTTPException):bridge('submit_candidate',{'result':candidate()})
-        assert bridge('knowledge_search',{'collection':'laws','query':'董事会'})['data']['items']
+        items=bridge('knowledge_search',{'collection':'laws','query':'董事会'})['data']['items'];assert items
+        proposal=bridge('knowledge_propose',{'operation':'delete','collection':'laws','ids':[items[0]['id']],'summary':'模拟删除预览'})
+        assert proposal['terminate'] and proposal['data']['status']=='waiting_knowledge_confirmation'
         emit({'type':'done'})
-    r.runner=model;out=settled(c,send_auto(c,s,'查询董事会规则'));assert out['run']['status']=='completed'
+    r.runner=model;out=settled(c,send_auto(c,s,'查询董事会规则'))
+    assert out['run']['status']=='waiting_knowledge_confirmation',out['run']
+    assert [row['id'] for row in library_admin.state(r.root,'laws','chinext')['items']]==before
 
 
 def test_purge_cleans_session_runs_files_and_backup_without_touching_other_session(control):

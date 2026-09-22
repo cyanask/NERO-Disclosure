@@ -92,18 +92,30 @@ def prepare_knowledge(home, seed, app, progress=lambda _: None):
         if staging.exists():shutil.rmtree(staging)  # this call's disposable staging only
 
 
-def install(source, target, home, seed, *, replace=False, progress=lambda _: None):
+def install(source, target, home, seed, *, replace=False, update_only=False, progress=lambda _: None):
     source, target = Path(source).resolve(), Path(target).expanduser().absolute()
     home = checked_home(home, source)
     if target.is_symlink() or target.suffix != '.app':raise ValueError('安装目标须为普通 .app 目录')
     if target == source:raise ValueError('请从安装介质安装到另一个位置')
     if target.is_relative_to(source) or source.is_relative_to(target):raise ValueError('安装位置不能包含源软件包')
+    if update_only:
+        if not replace or not target.is_dir():raise ValueError('更新包只用于已安装的信披系统，请选择原应用')
+        if not all((home/name).is_dir() for name in ('02_knowledge','03_local')):
+            raise ValueError('请选择原有资料目录，更新包不会创建或迁移资料')
     if target.exists():
         info = plistlib.loads((target/'Contents/Info.plist').read_bytes())
         if info.get('CFBundleIdentifier') != BUNDLE_ID:raise ValueError('目标位置属于其他软件')
         if not replace:raise ValueError('目标已有信披系统，请确认更新软件后重试')
     progress('正在核对安装文件')
-    verify_payload(source)
+    verified=verify_payload(source)
+    if update_only:
+        import re
+        current=info.get('CFBundleShortVersionString','')
+        incoming=verified.get('version','')
+        if not all(re.fullmatch(r'\d+\.\d+\.\d+',v) for v in (current,incoming)):
+            raise ValueError('应用版本无法识别，未替换程序')
+        if tuple(map(int,current.split('.'))) > tuple(map(int,incoming.split('.'))):
+            raise ValueError('已安装的版本较新，拒绝降级')
     target.parent.mkdir(parents=True, exist_ok=True)
     staging = target.parent/('.nero-install-' + uuid4().hex + '.app')
     backup = None
@@ -111,10 +123,11 @@ def install(source, target, home, seed, *, replace=False, progress=lambda _: Non
         progress('正在安装软件和离线运行环境')
         shutil.copytree(source, staging, symlinks=True)
         verify_payload(staging)
-        progress('正在初始化独立知识库')
-        knowledge = prepare_knowledge(home, seed, staging/'Contents/Resources/01_app', progress)
+        progress('正在核对原有资料兼容性' if update_only else '正在初始化独立知识库')
+        knowledge = prepare_knowledge(home, None if update_only else seed, staging/'Contents/Resources/01_app', progress)
         if target.exists():
-            backup = target.with_name(target.stem + '.previous-' + uuid4().hex[:8] + '.app')
+            # Keep rollback bytes without exposing another launchable application.
+            backup = target.with_name(target.stem + '.previous-' + uuid4().hex[:8] + '.app.backup')
             target.rename(backup)
         try:staging.rename(target)
         except OSError:

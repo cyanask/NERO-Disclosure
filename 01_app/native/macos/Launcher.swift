@@ -1,8 +1,109 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
+import WebKit
+import Darwin
 
-final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
     private var window: NSWindow!
+    private var workbench: NSWindow?
+    private var webView: WKWebView?
+    private var instanceLock: Int32 = -1
+    private let activateNotification = Notification.Name("cn.nero.disclosure.activate")
+
+    // Both workspace and installed bundles share this lock, including open -n.
+    private func claimWindow() -> Bool {
+        let directory = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/NERO Disclosure Runtime")
+        do { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
+        catch { showLaunchError(error.localizedDescription); return false }
+        instanceLock = Darwin.open(directory.appendingPathComponent("window.lock").path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
+        guard instanceLock >= 0 else { showLaunchError("无法取得应用实例锁。"); return false }
+        guard flock(instanceLock, LOCK_EX | LOCK_NB) == 0 else {
+            if errno == EWOULDBLOCK {
+                DistributedNotificationCenter.default().postNotificationName(activateNotification, object: nil, userInfo: nil, deliverImmediately: true)
+                for id in ["cn.nero.disclosure.workspace", "cn.nero.disclosure.desktop"] {
+                    for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where app.processIdentifier != getpid() {
+                        app.activate(options: [])
+                    }
+                }
+            } else { showLaunchError("无法检查已有应用实例。"); }
+            Darwin.close(instanceLock); instanceLock = -1
+            return false
+        }
+        DistributedNotificationCenter.default().addObserver(self, selector: #selector(activateExisting), name: activateNotification, object: nil)
+        return true
+    }
+
+    private func showLaunchError(_ message: String) {
+        let alert = NSAlert(); alert.messageText = "启动未完成"; alert.informativeText = message; alert.runModal()
+    }
+
+    @objc private func activateExisting() {
+        if readyURL != nil && browserEnabled { showWorkbench() }
+        else { window?.deminiaturize(nil); window?.makeKeyAndOrderFront(nil) }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func showWorkbench() {
+        guard let url = readyURL else { return }
+        if workbench == nil {
+            let page = WKWebView(frame: .zero)
+            page.navigationDelegate = self; page.uiDelegate = self
+            let frame = NSRect(x: 0, y: 0, width: 1200, height: 800)
+            let view = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            view.title = "NERO 信披系统"; view.contentView = page
+            view.delegate = self; view.isReleasedWhenClosed = false
+            view.center(); workbench = view; webView = page
+            page.load(URLRequest(url: url))
+        }
+        window?.orderOut(nil)
+        workbench?.deminiaturize(nil); workbench?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func isWorkbenchURL(_ url: URL) -> Bool {
+        guard let origin = readyURL else { return false }
+        return url.scheme == origin.scheme && url.host == origin.host && url.port == origin.port
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let url = action.request.url else { decisionHandler(.cancel); return }
+        if isWorkbenchURL(url) {
+            if action.shouldPerformDownload || (action.targetFrame == nil && url.path.hasPrefix("/api/")) {
+                decisionHandler(.download)
+            } else {
+                decisionHandler(.allow)
+            }
+        } else {
+            // Authorization and public sources belong in the user's normal browser.
+            if ["https", "http"].contains(url.scheme ?? "") { NSWorkspace.shared.open(url) }
+            decisionHandler(.cancel)
+        }
+    }
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = action.request.url, isWorkbenchURL(url) { webView.load(action.request) }
+        return nil
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        let attachment = (response.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")?.lowercased().hasPrefix("attachment") == true
+        decisionHandler(attachment || !response.canShowMIMEType ? .download : .allow)
+    }
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) { download.delegate = self }
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) { download.delegate = self }
+    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
+        let panel = NSSavePanel(); panel.nameFieldStringValue = URL(fileURLWithPath: suggestedFilename).lastPathComponent
+        panel.begin { result in completionHandler(result == .OK ? panel.url : nil) }
+    }
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) { showLaunchError("文件下载失败：" + error.localizedDescription) }
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        let panel = NSOpenPanel(); panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.canChooseDirectories = parameters.allowsDirectories; panel.canChooseFiles = true
+        panel.begin { result in completionHandler(result == .OK ? panel.urls : nil) }
+    }
+
     private let title = NSTextField(labelWithString: "NERO 信息披露")
     private let detail = NSTextField(wrappingLabelWithString: "正在准备工作台")
     private let location = NSTextField(wrappingLabelWithString: "")
@@ -27,7 +128,11 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var seed: URL?
     private var browserEnabled = true
     private let fullInstaller = Bundle.main.object(forInfoDictionaryKey: "NEROFullMigrationInstaller") as? Bool ?? false
-    private var logDirectory: URL { fullInstaller
+    private let updateInstaller = Bundle.main.object(forInfoDictionaryKey: "NEROSoftwareUpdateInstaller") as? Bool ?? false
+    private let deltaInstaller = Bundle.main.object(forInfoDictionaryKey: "NERODeltaUpdateInstaller") as? Bool ?? false
+    private var bundledInstaller: Bool { fullInstaller || updateInstaller }
+    private var releaseVersion: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0" }
+    private var logDirectory: URL { bundledInstaller
         ? URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("NERO-Disclosure-Installer-Logs")
         : home.appendingPathComponent("03_local/var/logs") }
     private let workspace = (Bundle.main.object(forInfoDictionaryKey: "NEROWorkspaceRoot") as? String).map { URL(fileURLWithPath: $0) }
@@ -42,7 +147,10 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         browserEnabled = !CommandLine.arguments.contains("--no-browser")
         let defaultHome = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/NERO Disclosure")
-        let selected = argument("--data-home") ?? UserDefaults.standard.string(forKey: "dataHome")
+        let savedHome = updateInstaller
+            ? UserDefaults.standard.persistentDomain(forName: "cn.nero.disclosure.desktop")?["dataHome"] as? String
+            : UserDefaults.standard.string(forKey: "dataHome")
+        let selected = argument("--data-home") ?? savedHome
         home = workspace ?? selected.map { URL(fileURLWithPath: $0, isDirectory: true) } ?? defaultHome
         let beside = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("02_knowledge")
         if let specified = argument("--seed") { seed = URL(fileURLWithPath: specified) }
@@ -50,13 +158,16 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         modeInstall = seed != nil && Bundle.main.bundleURL.path.hasPrefix("/Volumes/")
         if CommandLine.arguments.contains("--installer") { modeInstall = true }
         if workspace != nil { modeInstall = false }
-        if fullInstaller { modeInstall = true }
+        if bundledInstaller { modeInstall = true }
+        if !modeInstall && !claimWindow() { NSApp.terminate(nil); return }
         buildWindow()
         if modeInstall {
-            setState("安装信披系统 1.0", fullInstaller
+            setState(updateInstaller ? "更新信披系统 " + releaseVersion : "安装信披系统 " + releaseVersion, updateInstaller
+                ? (deltaInstaller ? "仅适用于 1.0.1（构建 2026091901）。请先退出旧程序。差分更新保留知识库、会话、文稿和模型配置。" : "仅更新程序，保留原有知识库、会话、文稿和模型配置。请先退出旧程序，并核对下方资料目录。")
+                : fullInstaller
                 ? "一次安装软件、五类知识资料、历史会话和执行记录。请使用一个尚不存在的新资料目录；模型账号须重新授权。"
                 : "程序将安装到个人应用程序目录，知识库独立保存在下方位置。", busy: false)
-            primary.title = "安装并打开"
+            primary.title = updateInstaller ? "更新并打开" : "安装并打开"
         } else { start() }
     }
 
@@ -65,8 +176,16 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let appItem = NSMenuItem()
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "资料位置", action: #selector(openData), keyEquivalent: "")
+        appMenu.addItem(withTitle: "查看日志", action: #selector(openLogs), keyEquivalent: "")
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "退出信披系统", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
+        let editItem = NSMenuItem(); mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "编辑"); editItem.submenu = editMenu
+        for (name, action, key) in [("撤销", "undo:", "z"), ("剪切", "cut:", "x"), ("复制", "copy:", "c"), ("粘贴", "paste:", "v"), ("全选", "selectAll:", "a")] {
+            editMenu.addItem(withTitle: name, action: Selector(action), keyEquivalent: key)
+        }
         NSApp.mainMenu = mainMenu
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 330),
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
@@ -110,7 +229,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         seedButton.frame = NSRect(x: 178, y: 20, width: 145, height: 28)
         view.addSubview(seedButton)
         choose.isHidden = workspace != nil
-        seedButton.isHidden = workspace != nil || fullInstaller
+        seedButton.isHidden = workspace != nil || bundledInstaller
         let note = NSTextField(labelWithString: "退出仅停止本窗口启动的服务。")
         note.font = .systemFont(ofSize: 11)
         note.textColor = .secondaryLabelColor
@@ -132,7 +251,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func primaryAction() {
         if let application = installedApplication { NSWorkspace.shared.open(application); return }
-        if let url = readyURL { NSWorkspace.shared.open(url); return }
+        if readyURL != nil { showWorkbench(); return }
         if modeInstall { installApp() } else { start() }
     }
 
@@ -146,9 +265,13 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func installApp() {
-        let target = argument("--install-to").map { URL(fileURLWithPath: $0) }
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications/NERO 信披系统.app")
+        if updateInstaller && !NSRunningApplication.runningApplications(withBundleIdentifier: "cn.nero.disclosure.desktop").isEmpty {
+            setState("请先退出旧程序", "退出原来的信披系统启动器后，再点击更新。现有资料保持不变。", busy: false)
+            return
+        }
+        guard let target = installationTarget() else { return }
         var args = ["--data-home", home.path, "--install-to", target.path]
+        if updateInstaller { args += ["--update-only"] }
         if fullInstaller, let resources = Bundle.main.resourceURL {
             args += ["--snapshot", resources.appendingPathComponent("MigrationData").path]
         }
@@ -156,15 +279,37 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if FileManager.default.fileExists(atPath: target.path) {
             let alert = NSAlert()
             alert.messageText = "更新已安装的软件？"
-            alert.informativeText = "现有知识库与工作记录继续保留，原应用保留为回退副本。请先退出正在运行的旧版本。"
+            alert.informativeText = "现有知识库与工作记录继续保留，原应用保留为回退副本。\n应用位置：" + target.path
             alert.addButton(withTitle: "更新软件")
             alert.addButton(withTitle: "取消")
             if alert.runModal() != .alertFirstButtonReturn { return }
             args.append("--replace")
         }
         installing = true
-        setState("正在安装", "正在复制程序和运行环境，首次安装还会初始化知识库。", busy: true)
+        setState(updateInstaller ? "正在更新" : "正在安装", updateInstaller
+            ? "正在核对程序、保留旧版本并更新。原有资料不被覆盖。"
+            : "正在复制程序和运行环境，首次安装还会初始化知识库。", busy: true)
         run(args)
+    }
+
+    private func installationTarget() -> URL? {
+        if let specified = argument("--install-to") { return URL(fileURLWithPath: specified) }
+        let personal = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications/NERO 信披系统.app")
+        if !updateInstaller { return personal }
+        func isInstalled(_ url: URL) -> Bool {
+            if url.path.hasPrefix(Bundle.main.bundleURL.path + "/") || url.path.hasPrefix("/Volumes/") { return false }
+            return Bundle(url: url)?.bundleIdentifier == "cn.nero.disclosure.desktop"
+        }
+        let candidates = [personal, URL(fileURLWithPath: "/Applications/NERO 信披系统.app")]
+        if let target = candidates.first(where: isInstalled) { return target }
+        if let found = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "cn.nero.disclosure.desktop"), isInstalled(found) { return found }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.prompt = "选择原应用"; panel.message = "请选择此前安装的 NERO 信披系统.app，更新包不会新建一套资料。"
+        if panel.runModal() == .OK, let target = panel.url, isInstalled(target) { return target }
+        setState("未选择原应用", "请先找到原来的 NERO 信披系统.app，再点击更新。", busy: false)
+        return nil
     }
 
     private func run(_ args: [String]) {
@@ -174,7 +319,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         #else
         let architecture = "x86_64"
         #endif
-        let appResources = fullInstaller
+        let appResources = bundledInstaller
             ? resources.appendingPathComponent("Applications/"+architecture+"/NERO 信披系统.app/Contents/Resources")
             : resources
         let code = (workspace ?? appResources).appendingPathComponent("01_app")
@@ -184,7 +329,11 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let child = Process()
         child.executableURL = python
         child.arguments = ["-B", "-s", "-u", code.appendingPathComponent("scripts/macos_desktop.py").path] + args + (workspace == nil ? [] : ["--workspace"])
-        child.currentDirectoryURL = code
+        if deltaInstaller {
+            child.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/DeltaApply")
+            child.arguments = ["--delta", resources.appendingPathComponent("Deltas/" + architecture).path] + args
+        }
+        child.currentDirectoryURL = deltaInstaller ? resources : code
         child.environment = ["PATH":"/usr/bin:/bin:/usr/sbin:/sbin", "HOME":FileManager.default.homeDirectoryForCurrentUser.path,
                              "TMPDIR":NSTemporaryDirectory(), "LANG":"en_US.UTF-8", "PYTHONUTF8":"1",
                              "PYTHONDONTWRITEBYTECODE":"1", "PYTHONNOUSERSITE":"1"]
@@ -213,13 +362,15 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     if self.quitting { NSApp.reply(toApplicationShouldTerminate: true); return }
                     if self.attached { return }
                     if self.readyURL != nil { self.readyURL = nil }
+                    self.workbench?.orderOut(nil); self.workbench = nil; self.webView = nil
+                    self.window.makeKeyAndOrderFront(nil)
                     if finished.terminationStatus == 0 {
                         self.setState("工作台已停止", "知识库和工作记录已保留，可以再次启动。", busy: false)
                     } else if self.title.stringValue != "启动未完成" {
                         self.setState("启动未完成", "请点击“查看日志”核对失败原因，再重新启动。", busy: false)
                     }
                     self.installing = false
-                    self.primary.title = self.modeInstall ? "安装并打开" : "重新启动"
+                    self.primary.title = self.modeInstall ? (self.updateInstaller ? "更新并打开" : "安装并打开") : "重新启动"
                 }
             }
             process = child
@@ -248,7 +399,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 if let url = value["url"] as? String { readyURL = URL(string: url) }
                 setState("工作台已就绪", "现有 WebUI 已可使用。首次使用请在“模型设置”中授权自己的账号。", busy: false)
                 choose.isEnabled = false; primary.title = "打开工作台"
-                if browserEnabled, let url = readyURL { NSWorkspace.shared.open(url) }
+                if browserEnabled && readyURL != nil { showWorkbench() }
             case "error":
                 setState("启动未完成", value["message"] as? String ?? "请查看日志", busy: false)
                 primary.title = "重试"
@@ -260,7 +411,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 // The installer and installed application have separate bundle IDs.
                 var settings = UserDefaults.standard.persistentDomain(forName: "cn.nero.disclosure.desktop") ?? [:]
                 settings["dataHome"] = home.path
-                if fullInstaller && argument("--desktop-folder") == nil {
+                if bundledInstaller && argument("--desktop-folder") == nil {
                     UserDefaults.standard.setPersistentDomain(settings, forName: "cn.nero.disclosure.desktop")
                 }
                 if fullInstaller {
@@ -274,7 +425,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 installed = true
                 setState("安装完成", "正在打开已安装的软件。", busy: false)
                 let configuration = NSWorkspace.OpenConfiguration()
-                configuration.createsNewApplicationInstance = true
+                configuration.createsNewApplicationInstance = false
                 configuration.arguments = ["--data-home", home.path] + (browserEnabled ? [] : ["--no-browser"])
                 NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: configuration) { _, error in
                     DispatchQueue.main.async {
@@ -328,8 +479,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        window.makeKeyAndOrderFront(nil)
-        if let url = readyURL, browserEnabled { NSWorkspace.shared.open(url) }
+        activateExisting()
         return true
     }
 

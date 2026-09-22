@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 import re
 from . import library
 
-CONTRACT_VERSION = '2.5.0'
+CONTRACT_VERSION = '2.6.0'
 
 
 def scope(event):
@@ -153,9 +153,11 @@ def assessment_checks(event, catalog, result, history_reader=None, review=None):
                     warnings.append(problem('fact_quote_bound', '已从事项说明自动绑定事实原句：' + fact['key']))
                 else:
                     record('fact_source_mismatch', '自然语言事实缺少可定位原句：' + fact['key'], fact['key'])
-            elif fact['quote'] not in event.get('summary', ''):
+            if fact['quote'] and fact['quote'] not in event.get('summary', ''):
                 record('fact_source_mismatch', '提交的事实引文不在事项说明中：' + fact['key'], fact['key'], invalid_claim=True)
-            elif not quoted_value_matches(fact['value'], fact['quote']):
+            elif fact['quote'] and (fact['key'] in decisive or not quoted_value_matches(fact['value'], fact['quote'])):
+                # Decisive free-text facts always need semantic ownership review. A number merely
+                # appearing in the sentence does not prove that it belongs to this fact.
                 item=review_item('fact:'+fact['key'],'summary_value_review',fact,ref,fact['quote'])
                 resolve_review(item,review,review_items,errors)
         elif ref in ('scope.company_name','scope.stock_code','scope.board'):
@@ -169,7 +171,9 @@ def assessment_checks(event, catalog, result, history_reader=None, review=None):
                 text='\n'.join(p['text'] for p in original['pages'])
                 if original['sha256']!=allowed[ref]['sha256'] or not fact['quote'] or not excerpt_in_source(fact['quote'],text):raise ValueError()
                 history_supported=True
-                if not quoted_value_matches(fact['value'],fact['quote']):
+                if fact['key'] in decisive or not quoted_value_matches(fact['value'],fact['quote']):
+                    # Historical decisive facts require semantic ownership review even when the
+                    # same numeric token is present elsewhere in the cited sentence/window.
                     item=review_item('fact:'+fact['key'],'fact_value_review',fact,ref,
                                      evidence_context(text,fact['quote']),original['sha256'])
                     resolve_review(item,review,review_items,errors)

@@ -18,6 +18,12 @@ from scripts.refresh_knowledge_packages import refresh
 from test_public_library_index import setup as seed_public
 
 
+@pytest.fixture(autouse=True)
+def isolate_service_instance(tmp_path, monkeypatch):
+    from scripts import service_instance
+    monkeypatch.setattr(service_instance, 'runtime_directory', lambda: tmp_path/'runtime-lock')
+
+
 @pytest.fixture
 def installed(tmp_path, monkeypatch):
     package = tmp_path/'安装 位置/NERO 信披系统.app'
@@ -104,6 +110,11 @@ def test_worker_inherits_only_the_selected_data_scope(monkeypatch):
 
 def test_port_permission_error_is_not_treated_as_occupied(monkeypatch):
     class Blocked:
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def settimeout(self,*args):pass
+        def setsockopt(self,*args):pass
+        def connect(self,address):raise ConnectionRefusedError(errno.ECONNREFUSED,'refused')
         def bind(self,addr):raise PermissionError(errno.EACCES,'permission denied')
         def close(self):pass
     monkeypatch.setattr(desktop.socket,'socket',Blocked)
@@ -260,8 +271,25 @@ def test_workspace_serve_does_not_restart_after_parent_pipe_eof(tmp_path,monkeyp
 
 def test_restart_listener_refuses_port_fallback(monkeypatch):
     class Busy:
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def settimeout(self,*args):pass
+        def setsockopt(self,*args):pass
+        def connect(self,address):raise ConnectionRefusedError(errno.ECONNREFUSED,'refused')
         def bind(self,address):raise OSError(errno.EADDRINUSE,'busy')
         def close(self):pass
     monkeypatch.setattr(desktop.socket,'socket',lambda:Busy())
     with pytest.raises(RuntimeError,match='重启目标端口'):
         desktop.listen(18876,exact=True)
+
+
+def test_restart_handover_never_takes_a_live_listener(monkeypatch):
+    class Serving:
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def settimeout(self,*args):pass
+        def connect(self,address):pass
+        def bind(self,address):raise AssertionError('a live listener must not be rebound')
+        def close(self):pass
+    monkeypatch.setattr(desktop.socket,'socket',lambda:Serving())
+    with pytest.raises(RuntimeError,match='重启目标端口'):desktop.listen(18877,exact=True)

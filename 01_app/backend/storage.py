@@ -54,6 +54,19 @@ class Store:
         row = conn.execute(text('SELECT body FROM events WHERE id=:id'), {'id': event_id}).scalar()
         return json.loads(row) if row else None
 
+    def event_ids(self, conn, board=None, company=None):
+        clauses=[];args={}
+        if board is not None:
+            clauses.append("json_extract(body,'$.layer')=:board")
+            args['board']=board
+        if company is not None:
+            clauses.append("json_extract(body,'$.stock_code')=:company")
+            args['company']=company
+        query='SELECT id FROM events'
+        if clauses:query+=' WHERE '+' AND '.join(clauses)
+        query+=' ORDER BY rowid DESC'
+        return conn.execute(text(query),args).scalars().all()
+
     def company_drafts(self, board, code):
         if not code:return []
         query=text("SELECT body FROM events WHERE json_extract(body,'$.layer')=:board AND json_extract(body,'$.stock_code')=:code")

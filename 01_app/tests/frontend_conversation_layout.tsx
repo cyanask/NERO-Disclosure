@@ -1,0 +1,52 @@
+import React from 'react';
+import assert from 'node:assert/strict';
+import {renderToStaticMarkup} from 'react-dom/server';
+import type {PiRun,Receipt,DocumentVersion} from '../frontend/src/chat';
+import {currentProcessText,deliveredWords,deliveredTexts,elapsedLabel} from '../frontend/src/conversationPresentation';
+import RoundArticle from '../frontend/src/components/RoundArticle';
+import DocumentPanel from '../frontend/src/components/DocumentPanel';
+import RoundTextDelivery from '../frontend/src/components/RoundTextDelivery';
+import SessionPanel from '../frontend/src/components/SessionPanel';
+const run={id:'r',session_id:'s',event_id:'e',board:'chinext',stage:'chat',status:'running',created:10,model:{label:'model'},timings:{total_ms:83000}} as PiRun;
+const row=(seq:number,kind:string,body:object)=>({seq,run_id:'r',kind,body,at:seq} as Receipt);
+const rows=[row(1,'user',{text:'原始问题\n第二行'}),row(2,'assistant',{text:'我会先说明适用条件，再整理办理顺序。',phase:'progress',stopReason:'toolUse'}),row(3,'thinking',{text:'PRIVATE_REASONING'}),row(4,'assistant',{text:'最终答复',phase:'final',stopReason:'stop'})];
+assert.equal(currentProcessText(run,rows),'我会先说明适用条件，再整理办理顺序。');
+assert.equal(currentProcessText({...run,status:'completed'},rows),'');
+assert.equal(currentProcessText(run,[row(1,'assistant',{text:'English tool trace',phase:'progress'})]),'');
+assert.equal(currentProcessText(run,[{...rows[1],run_id:'other'}]),'');
+function render(value:PiRun){return renderToStaticMarkup(<RoundArticle run={value} rows={rows} busy={false} hideQuestions={false} audit={{open:false,anchor:{current:null},toggle:()=>{},close:()=>{}}} onRunChange={()=>{}}/>);}
+const running=render(run),finished=render({...run,status:'completed'});
+assert.match(running,/中文过程说明/);assert.doesNotMatch(finished,/中文过程说明|我会先说明/);
+assert.match(finished,/已处理 1分23秒/);assert.match(finished,/最终答复/);
+assert.match(finished,/question-bubble/);assert.match(finished,/原始问题\n第二行/);
+assert.doesNotMatch(finished,/class="speaker"|PRIVATE_REASONING|本轮耗时与检索|会话文档|查看本轮进展/);
+assert.equal(renderToStaticMarkup(<DocumentPanel run={run}/>),'');
+const word={document_id:'doc',version:1,title:'真实登记文稿',format:'docx',run_id:'r',download:'/api/word-v1',pending:[],review_status:'pending'} as DocumentVersion;
+const current={...word,version:2,run_id:'later',download:'/api/word-v2',history:[word]};
+assert.deepEqual(deliveredWords(run,[current]).map(v=>v.version),[1]);
+assert.deepEqual(deliveredWords({...run,id:'other'},[current]),[]);
+assert.deepEqual(deliveredWords({...run,documents:[{...word,format:'text',download:undefined}]},[current]),[]);
+const delivery=renderToStaticMarkup(<DocumentPanel run={{...run,documents:[word]}} items={[current]}/>);
+assert.match(delivery,/预览正文/);assert.match(delivery,/下载 Word/);assert.match(delivery,/word-v1/);assert.doesNotMatch(delivery,/word-v2|document-panel-heading/);
+const missing=renderToStaticMarkup(<DocumentPanel run={{...run,documents:[word]}} items={[{...word,available:false}]}/>);
+assert.match(missing,/文件缺失或内容已变化/);assert.doesNotMatch(missing,/href="\/api\/word-v1"/);
+assert.equal(elapsedLabel(null),'用时未记录');assert.equal(elapsedLabel(0),'0秒');
+const sessions=renderToStaticMarkup(<SessionPanel sessions={[]} sid="" search="" onSearch={()=>{}} archived={false} open={true} busy={false} running={()=>false} onToggle={()=>{}} onNew={()=>{}} onChoose={()=>{}} onArchive={()=>{}} onDelete={()=>{}} onArchived={()=>{}}/>);
+assert.match(sessions,/aria-expanded="true"/);assert.doesNotMatch(sessions,/sessions-collapsed/);
+console.log('PASS: compact original question, live Chinese commentary, elapsed-only terminal state, scoped Word version actions, no empty document area, expanded session list');
+
+const textDoc={...word,format:'text' as const,download:undefined,text:'# 公告正文\n\n保存的完整正文。'};
+assert.equal(deliveredTexts({...run,documents:[textDoc]},[textDoc]).length,1);
+const textHtml=renderToStaticMarkup(<RoundTextDelivery run={{...run,documents:[textDoc]}} items={[textDoc]} answer="已保存"/>);
+assert.match(textHtml,/保存的完整正文/);assert.doesNotMatch(textHtml,/下载 Word|预览正文/);
+
+// Warnings retain all distinct reasons without repeating the same instruction three times.
+import {evidenceWarnings,unsavedDrafts} from '../frontend/src/conversationPresentation';
+const grouped=evidenceWarnings([{reason:'原文定位不到',statement:'甲'},{reason:'原文定位不到',statement:'乙'},{reason:'原文定位不到',statement:'丙'},{reason:'期间待核实',statement:'丁'}]);
+assert.equal(grouped.length,2);assert.equal(grouped[0].count,3);assert.equal(grouped[0].statements.length,3);
+const draftRows=[row(5,'model_tool_call',{name:'save_announcement',args:{documents:[{title:'历史稿',text:'未保存的历史正文'}]}})];
+assert.equal(unsavedDrafts({...run,status:'failed'},draftRows)[0].text,'未保存的历史正文');
+assert.deepEqual(unsavedDrafts({...run,status:'completed'},draftRows),[]);
+assert.deepEqual(unsavedDrafts({...run,status:'failed',documents:[word]},draftRows),[]);
+const draftHtml=renderToStaticMarkup(<RoundArticle run={{...run,status:'failed',reason:'核验失败'}} rows={draftRows} busy={false} hideQuestions={false} audit={{open:false,anchor:{current:null},toggle:()=>{},close:()=>{}}} onRunChange={()=>{}}/>);
+assert.match(draftHtml,/未保存草稿（历史尝试）/);assert.match(draftHtml,/未保存的历史正文/);assert.doesNotMatch(draftHtml,/下载 Word/);

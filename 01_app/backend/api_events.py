@@ -1,6 +1,5 @@
 """Event endpoints: list, create, read, edit, rule check and the retired tombstones."""
 from fastapi import HTTPException, Request
-from sqlalchemy import text
 from . import models as m, agent_tasks as tasks, gates, library
 from .boards import require_board
 from .workflow import audit, edit_facts, new_event
@@ -38,11 +37,8 @@ def mount(app,ctx,load,read_event):
         if board is not None: require_board(board)
         ctx.security.actor(request)
         with ctx.store.read() as conn:
-            ids = conn.execute(text('SELECT id FROM events ORDER BY rowid DESC')).scalars().all()
-            scopes = {event_id: (ctx.store.get(conn,event_id) or {}) for event_id in ids}
-        return [tasks.project_event(read_event(event_id)) for event_id in ids
-                if (board is None or scopes[event_id].get('layer')==board)
-                and (company is None or scopes[event_id].get('stock_code')==company)]
+            ids = ctx.store.event_ids(conn, board, company)
+        return [tasks.project_event(read_event(event_id)) for event_id in ids]
 
     @app.post('/api/events')
     def event_create(payload: m.Create, request: Request):

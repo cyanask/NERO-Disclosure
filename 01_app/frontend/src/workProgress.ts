@@ -3,13 +3,14 @@ import {nodeLabels,runLabels} from './chat';
 
 export type ActivityState='requested'|'running'|'done'|'failed'|'unknown';
 export type WorkActivity={key:string;seq:number;label:string;state:ActivityState;detail:string};
-export type WorkProgress={tone:'quiet'|'active'|'human'|'blocked';title:string;detail:string;animate:boolean;historical:boolean;activities:WorkActivity[];action?:'input'|'knowledge'|'documents'|'review';actionLabel?:string};
+export type WorkProgress={tone:'quiet'|'active'|'human'|'blocked'|'done';title:string;detail:string;animate:boolean;historical:boolean;activities:WorkActivity[];action?:'input'|'knowledge'|'documents'|'review';actionLabel?:string};
 const text=(v:unknown)=>typeof v==='string'?v:'';
 const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
 const names:Record<string,string>={search_library:'检索资料库',read_library:'读取资料正文',read_event:'读取事项事实',
  knowledge_search:'检索知识库',knowledge_read:'读取知识库条目',knowledge_history:'查阅历史公告',knowledge_web_search:'检索公开来源',knowledge_download:'取得公开资料',knowledge_download_read:'读取公开资料',
  read_document_context:'读取当前文稿与资料',read_document:'读取文稿',read_document_template:'读取文稿模板',read_attachment:'读取补充附件',make_word:'制作 Word',save_announcement:'保存公告正文',
  knowledge_propose:'准备知识库变更',knowledge_import_propose:'准备资料入库预览',knowledge_import_url:'取得待入库资料',knowledge_template_replace:'准备模板替换',knowledge_delete_prepare:'准备删除预览',
+ load_business_skill:'加载业务方法',prepare_disclosure_workflow:'开始事项办理',confirm_announcement_text:'登记正文确认',
  request_information:'整理待补问题',submit_candidate:'提交工作结果',lifecycle_submit:'登记法规核验结果',
  'task.library.search':'检索资料库','task.library.read':'读取资料正文','event.get':'读取事项事实','task.evaluate':'核验工作结果','verify.run':'核验工作结果'};
 const hidden=new Set(['route_request','task.request','task.open','task.finish','gate.advance']);
@@ -62,15 +63,16 @@ export function workProgress(run:PiRun|undefined,rows:Receipt[]=[],options:{disc
  const finished=new Set(['completed','waiting_user','waiting_approval','waiting_knowledge_confirmation','failed','cancelled','interrupted','incomplete','blocked']);
  // Historical, disconnected and terminal views never show an old start as still executing.
  if(historical||options.disconnected||finished.has(run.status)||run.status==='cancelling')result.activities=activities.map(a=>a.state==='running'||a.state==='requested'?{...a,state:'unknown',detail:a.detail||'未收到该次操作的明确完成记录。'}:a);
- if(historical){result.title=`历史轮次 · ${runLabels[run.status]||'状态未明确'}`;result.detail='这里保留当时的工作与版本记录，不代表当前文稿状态。';return result;}
+ if(historical){result.tone=run.status==='completed'?'done':result.tone;result.title=`历史轮次 · ${runLabels[run.status]||'状态未明确'}`;result.detail='这里保留当时的工作与版本记录，不代表当前文稿状态。';return result;}
  if(options.disconnected){result.title='连接中断，状态待同步';result.detail=`最后已知：${nodeLabels[run.stage]||'需求处理'} · ${runLabels[run.status]||'状态未明确'}。已有记录保留，不自动重发请求。`;return result;}
- if(run.status==='accepted'){result.title='等待启动';result.detail='请求已接收，尚未开始执行。';return result;}
- if(run.status==='cancelling'){result.title='正在停止';result.detail='停止请求已登记，等待执行结束；已有结果保留。';return result;}
+ if(run.status==='accepted'){result.tone='active';result.title='等待启动';result.detail='请求已接收，尚未开始执行。';return result;}
+ if(run.status==='cancelling'){result.tone='active';result.title='正在停止';result.detail='停止请求已登记，等待执行结束；已有结果保留。';return result;}
  if(run.status==='waiting_user'){return {...result,tone:'human',title:'需要你补充信息',detail:run.questions?.[0]||run.reason||'请查看本轮待补问题。',action:'input',actionLabel:'去补充'};}
  if(run.status==='waiting_knowledge_confirmation')return {...result,tone:'human',title:'知识库变更待确认',detail:run.knowledge_change?.summary||'已准备变更预览，尚未执行。',action:'knowledge',actionLabel:'查看变更预览'};
  if(run.status==='waiting_approval'){return {...result,tone:'human',title:options.pendingReview?`需要人工${options.pendingReview}`:'需要人工确认',detail:run.reason||'请核对当前对象和版本。',action:'review',actionLabel:'查看待确认事项'};}
  if(['failed','interrupted','incomplete','blocked','cancelled'].includes(run.status))return {...result,tone:run.status==='cancelled'?'quiet':'blocked',title:runLabels[run.status],detail:[run.reason||'请查看本轮记录。',recorded?(documentAction==='review'?'已有文件登记记录，可在事项记录中核对。':'已有文件登记记录，可在文档区核对。'):''].filter(Boolean).join(' '),...(recorded?{action:documentAction,actionLabel:documentAction==='review'?'查看事项文稿':'查看文稿'}:{})};
  if(run.status==='completed'){
+  result.tone='done';
   result.title=run.stage==='confirmation'?'正文确认已记录':recorded?'Word 工作稿已生成':textSaved?'公告正文已保存':own.some(r=>r.kind==='knowledge_applied')?'知识库变更已执行':'本轮已完成';
   result.detail=run.stage==='confirmation'?'确认只针对当时指定的正文版本，不代表 Word 文件验收或发布。':recorded?'文件生成与内容审阅分别记录，请核对登记版本和待补项。':textSaved?'正文版本与待补事项保留，可继续修改或要求制作 Word。':'本轮处理已结束，可查看答复及依据。';
   if(['failed','interrupted'].includes(run.finalization_status||''))result.detail+=' 收尾答复未完成，已登记的结果仍保留。';

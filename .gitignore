@@ -39,3 +39,6 @@ __pycache__/
 *.key
 *.dmg
 *.app/
+
+# Also ignore development dependency symlinks.
+node_modules

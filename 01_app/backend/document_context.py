@@ -11,6 +11,18 @@ def seeds_for(runtime, run):
     return Seeds(runtime.root).for_event(scope)
 
 
+def with_announcement_method(runtime, run, value):
+    """Use the same drafting guidance for announcement text, Word and revisions."""
+    target=next((d for d in value['documents'] if d['document_id']==run.get('target_document_id')),None)
+    planned=(run.get('document_preflight') or {}).get('documents',[])
+    announcement=(run['stage']=='announcement' or run.get('document_kind') in ('announcement','mixed') or
+                  (not run.get('document_kind') and ((target and target['kind']=='announcement') or
+                   any(d['kind']=='announcement' for d in planned))))
+    if announcement and run.get('document_action')!='render':
+        value={**value,'method':runtime.load_method(run,'announcement')}
+    return value
+
+
 def context(runtime, run):
     from .agent_tasks import model_event
     event = runtime.event(run['event_id']) if bound(run['event_id']) else None
@@ -36,6 +48,7 @@ def context(runtime, run):
              'event_revision': event['revision'] if event else None,
              'document_revision': documents['revision'],
              'documents': [{k: row.get(k) for k in ('document_id', 'version', 'title', 'kind', 'format','template_id', 'source_type', 'sha256', 'pending', 'review_status', 'available')} for row in documents['items']],
+             'document_action':run.get('document_action','create'),'reply_source':run.get('reply_source'),
              'document_kind':run.get('document_kind'),'latest_consultation':latest_consult,
              'sources': sources,
              'templates': [{'id': 'builtin:analysis', 'name': '分析材料通用版式', 'kind': 'analysis'}] +
@@ -46,6 +59,12 @@ def context(runtime, run):
     fingerprint=store.digest({k:v for k,v in value.items() if k!='stage'})
     value['document_preflight']=run.get('document_preflight') or previous(runtime,run)
     value['production_allowed']=allowed({**run,'document_context_sha256':fingerprint})
+    from .completion_receipts import document_capability
+    value['production_capability']=document_capability({**run,'document_context_sha256':fingerprint})
+    if run.get('document_action')=='render':
+        # This reflects the existing bound-reply route; render() still verifies
+        # the source belongs to this session and has the registered content hash.
+        value['production_allowed']=value['production_capability']['production_allowed']
     if event and event.get('plan'):
         value['planning_baseline']={k:event['plan'].get(k) for k in ('requirements','drafting_gaps','documents')}
     runtime.store.update(run['id'], document_context=value, document_context_sha256=fingerprint)

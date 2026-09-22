@@ -1,4 +1,5 @@
 export type Asset={reference:string;path:string;present:boolean;bytes:number;sha256:string;recorded_sha256:string;matches:boolean|null;mtime:string};
+export type Release={version:string;released_at:string;kind:string;summary:string;items:string[]};
 export type Version={scanned_at:string;boundary:string;elapsed_ms:number;
  build:{file:string;present:boolean;version:string;product:string;schema_version:string;description:string;files_count?:number;producer:{name?:string;label?:string;fingerprint?:string};manifest_sha256:string;recorded_at:string;error?:string|null};
  source:{available:boolean;commit:string;commit_date:string;subject:string;local_changes?:number;error?:string|null};
@@ -8,5 +9,6 @@ export type Version={scanned_at:string;boundary:string;elapsed_ms:number;
  runtime?:{pid:number;started_at:string;status:string};
  check:{mode:string;status?:string;checked:number;recorded:number;missing_count:number;changed_count:number;missing:string[];changed:{path:string;recorded:number;current:number}[];notice:string};
  rollback:{kind:string;path:string;bytes:number;files:number;at:string;readiness?:string;notice?:string}[];
+ releases?:{current:string;releases:Release[]};
  changes:{at:string;differences:string[]}[]};
 export type Verify={request_id:string;state:string;started_at:string;finished_at?:string;total:number;processed?:number;checked:number;bytes:number;missing_count:number;mismatch_count:number;missing:string[];mismatched:{path:string;recorded:string;current:string}[];elapsed_ms:number;error?:string;manifest_sha256?:string};

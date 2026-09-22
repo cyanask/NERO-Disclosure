@@ -90,7 +90,7 @@ def mount(app,root,directory,runtime,security):
         user(request);return version_governance.scan(root,directory,runtime)
     @app.get('/api/governance/version')
     def version_read(request:Request):
-        user(request);return version_governance.saved(directory)
+        user(request);return version_governance.saved(directory,root)
     @app.post('/api/governance/version/verify')
     def version_verify(body:VerifyRequest,request:Request):
         user(request);runtime.own()

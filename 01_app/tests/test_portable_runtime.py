@@ -8,6 +8,12 @@ import pytest
 from scripts import portable_runtime as setup
 
 
+@pytest.fixture(autouse=True)
+def isolate_service_instance(tmp_path, monkeypatch):
+    from scripts import service_instance
+    monkeypatch.setattr(service_instance, 'runtime_directory', lambda: tmp_path/'runtime-lock')
+
+
 @pytest.fixture
 def project(tmp_path):
     root=tmp_path/'新电脑 项目';(root/'runtime/pi').mkdir(parents=True);(root/'var').mkdir()
@@ -99,7 +105,7 @@ def test_existing_project_service_reuses_page_without_install_or_spawn(project,m
     monkeypatch.setattr(setup.webbrowser,'open',opened.append)
     monkeypatch.setattr(setup.subprocess,'Popen',lambda *a,**kw:pytest.fail('Existing service must be reused'))
     assert setup.launch(project,Path('python'),None,8878)==0
-    assert opened==['http://127.0.0.1:8878/']
+    assert opened==([] if setup.sys.platform=='darwin' else ['http://127.0.0.1:8878/'])
 
 
 def test_missing_built_asset_blocks_setup_before_model_or_data_work(project):

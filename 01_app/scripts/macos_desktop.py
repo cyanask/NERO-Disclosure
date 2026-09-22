@@ -12,9 +12,12 @@ import threading
 import time
 import urllib.request
 
+from contextlib import nullcontext
+
 APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 from scripts.macos_bundle import app_from_code, checked_home, install, prepare_knowledge
+from scripts.service_instance import service_instance, exec_restart
 
 
 def event(kind, **values):
@@ -83,9 +86,17 @@ def read_live(home):
 
 
 def listen(preferred,exact=False):
+    from scripts.portable_runtime import listening
     ports=(preferred,) if exact else range(preferred, min(preferred+30, 65536))
     for port in ports:
+        if listening(port):
+            # A live listener is never taken over; only TIME_WAIT leftovers are.
+            if exact:raise RuntimeError('重启目标端口已被其他服务占用，未接管')
+            continue
         channel = socket.socket()
+        # Keep this workspace's own TIME_WAIT sockets from blocking a restart; the live
+        # listener check above still keeps two instances off the same port.
+        channel.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:channel.bind(('127.0.0.1', port))
         except OSError as exc:
             channel.close()
@@ -114,7 +125,7 @@ def _restart_args(port):
 def _exec_restart(port):
     env=dict(os.environ);env['NERO_DESKTOP_RESTART']='1'
     command=[sys.executable,'-B','-s','-u','-X','utf8',str(Path(__file__).resolve()),*_restart_args(port)]
-    os.execve(sys.executable,command,env)
+    exec_restart(sys.executable,command,env)
 
 
 def workspace_home(home):
@@ -126,6 +137,13 @@ def workspace_home(home):
 
 def serve(home, seed, preferred, check=False, workspace=False):
     home = workspace_home(home) if workspace else checked_home(home, app_from_code(APP))
+    with (nullcontext(None) if check else service_instance(home/'03_local/var')) as instance:
+        if instance is not None and instance.url:
+            event('attached', url=instance.url, home=str(home)); return
+        _serve(home, seed, preferred, check, workspace, instance)
+
+
+def _serve(home, seed, preferred, check=False, workspace=False, instance=None):
     restart_handoff=os.environ.get('NERO_DESKTOP_RESTART')=='1'
     if restart_handoff:os.environ.pop('NERO_DESKTOP_RESTART',None)
     if workspace and not check:
@@ -158,7 +176,8 @@ def serve(home, seed, preferred, check=False, workspace=False):
         if check:event('checked', **report); return
         stopped = threading.Event();parent_stopped=threading.Event();restart_requested=False;restart_succeeded=False;port=None
         def watch():
-            try:sys.stdin.buffer.read(1)
+            # A blocked BufferedReader can abort Python during error shutdown.
+            try:getattr(sys.stdin.buffer, 'raw', sys.stdin.buffer).read(1)
             finally:parent_stopped.set();stopped.set()
         watch_thread=threading.Thread(target=watch, daemon=True);watch_thread.start()
         from backend.app import create_app
@@ -175,14 +194,20 @@ def serve(home, seed, preferred, check=False, workspace=False):
         channel, port = listen(preferred,exact=restart_handoff)
         state_path = local/'desktop-service.json'
         state_path.write_text(json.dumps({'home':str(home),'pid':os.getpid(),'port':port}),encoding='utf-8')
+        if instance is not None:instance.publish(port)
         server = uvicorn.Server(uvicorn.Config(app, host='127.0.0.1', port=port, log_level='warning', access_log=False))
         def status():
             deadline = time.monotonic()+45
             while not server.started and not stopped.is_set() and time.monotonic()<deadline:time.sleep(.1)
             if server.started and not stopped.is_set():
                 # Binding alone is not ready: the application must identify the selected data root.
-                if read_live(home):event('ready', url=f'http://127.0.0.1:{port}/', home=str(home), pid=os.getpid())
-                else:event('error', message='服务身份检查未通过'); stopped.set()
+                while not stopped.is_set() and time.monotonic()<deadline:
+                    if read_live(home):
+                        event('ready', url=f'http://127.0.0.1:{port}/', home=str(home), pid=os.getpid())
+                        break
+                    stopped.wait(.1)
+                else:
+                    if not stopped.is_set():event('error', message='服务身份检查未通过'); stopped.set()
             elif not stopped.is_set():event('error',message='启动超时，请查看日志'); stopped.set()
             stopped.wait(); server.should_exit=True
         threading.Thread(target=status,daemon=True).start()
@@ -203,10 +228,13 @@ def main():
     parser.add_argument('--install-to',type=Path)
     parser.add_argument('--snapshot',type=Path)
     parser.add_argument('--replace',action='store_true')
+    parser.add_argument('--update-only',action='store_true')
     parser.add_argument('--check',action='store_true')
     parser.add_argument('--workspace',action='store_true')
     parser.add_argument('--port',type=int,default=8765)
     args=parser.parse_args()
+    if args.update_only and (not args.install_to or args.snapshot or args.workspace):
+        raise ValueError('程序更新须指定原应用，不能同时迁移资料或更新源码工作区')
     if not 1024<=args.port<=65535:raise ValueError('端口范围无效')
     if args.workspace:
         if args.install_to:raise ValueError('本机工作区入口不执行安装或数据复制')
@@ -230,11 +258,14 @@ def main():
         event('installed',**result)
         return
     if args.install_to:
-        home=checked_home(args.data_home,bundle);home.mkdir(parents=True,exist_ok=True)
+        home=checked_home(args.data_home,bundle)
+        if args.update_only and not all((home/name).is_dir() for name in ('02_knowledge','03_local')):
+            raise ValueError('请选择原有资料目录，更新包不会创建或迁移资料')
+        home.mkdir(parents=True,exist_ok=True)
         with (home/'.desktop.lock').open('a+b') as lock:
             try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
             except BlockingIOError:raise RuntimeError('请先退出正在运行的信披系统再安装或更新') from None
-            result=install(bundle,args.install_to,home,seed,replace=args.replace,progress=progress)
+            result=install(bundle,args.install_to,home,seed,replace=args.replace,update_only=args.update_only,progress=progress)
             event('installed',**result)
     else:serve(args.data_home,seed,args.port,args.check)
 
