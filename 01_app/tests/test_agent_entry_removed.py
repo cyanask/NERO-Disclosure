@@ -13,7 +13,7 @@ def test_external_entry_is_gone_and_pi_can_still_submit(tmp_path,monkeypatch):
     monkeypatch.setenv('DISCLOSURE_TEST_KEY','offline-fixture-key')
     def runner(packet,emit,bridge,stop):
         emit({'type':'started'})
-        bridge('route_request',{'domain':'disclosure','intent':'workflow','reason':'隔离测试'})
+        bridge('prepare_disclosure_workflow',{'request_quote':packet['prompt']})
         assert bridge('read_event',{})['data']['layer']=='chinext'
         assert bridge('submit_candidate',{'result':candidate()})['data']['outcome']=='waiting_approval'
         emit({'type':'done'})

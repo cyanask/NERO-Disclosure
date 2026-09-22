@@ -53,29 +53,16 @@ test('consultation prose answer completes without a forced submission',async()=>
  assert.equal(events.at(-1).type,'done');
 });
 
-test('preflight recovery uses current tools and reaches one waiting-user boundary',async()=>{
+test('native preflight reaches one waiting-user boundary and closes tools',async()=>{
  const events=[],calls=[];let round=0;
- await execute({...packet,stage:'auto',routeFirst:true,tools:[fixtureTool('route_request')]},e=>events.push(e),async(id,name)=>{
-  calls.push(name);
-  return name==='route_request'?{data:{stage:'document'},next_context:{system:'preflight',system_sha256:'preflight-hash',stage:'document_preflight',requires_result:true,tools:[fixtureTool('assess_document_readiness')]}}
-   :{data:{status:'waiting_user'},terminate:true,finalize:true};
+ await execute({...packet,stage:'chat',tools:[fixtureTool('assess_document_readiness')]},e=>events.push(e),async(id,name)=>{
+  calls.push(name);return {data:{status:'waiting_user'},terminate:true,finalize:true};
  },(m,ctx,opts)=>{
-  round++;
-  if(round===1)return stream([{type:'toolCall',id:'route',name:'route_request',arguments:{}}],'toolUse')(m,ctx,opts);
-  if(round===2)return stream([{type:'text',text:'A or B'}])(m,ctx,opts);
-  if(round===3){
-   assert.deepEqual(ctx.tools.map(t=>t.name),['assess_document_readiness']);
-   const prompt=JSON.stringify(ctx.messages.at(-1));
-   assert.match(prompt,/assess_document_readiness/);assert.doesNotMatch(prompt,/submit_candidate|request_information/);
-   return stream([{type:'toolCall',id:'check',name:'assess_document_readiness',arguments:{}}],'toolUse')(m,ctx,opts);
-  }
-  assert.equal(round,4);assert.deepEqual(ctx.tools,[]);
-  return stream([{type:'text',text:'等待你处理已列出的缺口。'}])(m,ctx,opts);
+  round++;if(round===1)return stream([{type:'toolCall',id:'check',name:'assess_document_readiness',arguments:{}}],'toolUse')(m,ctx,opts);
+  assert.equal(round,2);assert.deepEqual(ctx.tools,[]);return stream([{type:'text',text:'等待你处理已列出的缺口。'}])(m,ctx,opts);
  });
- assert.deepEqual(calls,['route_request','assess_document_readiness']);
- assert.equal(events.filter(e=>e.type==='completion_repair_started').length,1);
- assert.ok(events.some(e=>e.type==='finalization_completed'));
- assert.equal(events.at(-1).type,'done');
+ assert.deepEqual(calls,['assess_document_readiness']);assert.ok(!events.some(e=>e.type==='completion_repair_started'));
+ assert.ok(events.some(e=>e.type==='finalization_completed'));assert.equal(events.at(-1).type,'done');
 });
 function stream(content,stopReason='stop'){
  return ()=>{const s=new AssistantMessageEventStream();const message={role:'assistant',content,api:model.api,provider:model.provider,model:model.id,usage:{input:10,output:10,cacheRead:0,cacheWrite:0,totalTokens:20,cost:{input:0,output:0,cacheRead:0,cacheWrite:0,total:0}},stopReason,timestamp:Date.now()};
@@ -181,33 +168,30 @@ test('closing failure preserves business completion and does not execute an extr
  assert.equal(calls,1);assert.equal(rounds,2);assert.ok(events.some(e=>e.type==='finalization_failed'));assert.equal(events.at(-1).type,'done');
 });
 
-test('same Pi changes scoped tools after routing and suppresses pre-routing answer text',async()=>{
+test('same Pi applies the explicit workflow context and preserves public progress',async()=>{
  const events=[];let rounds=0;const calls=[];
- const route={name:'route_request',description:'domain',parameters:{type:'object',properties:{},additionalProperties:false}};
+ const route={name:'prepare_disclosure_workflow',description:'domain',parameters:{type:'object',properties:{},additionalProperties:false}};
  const search={name:'knowledge_search',description:'read-only',parameters:{type:'object',properties:{},additionalProperties:false}};
- await execute({...packet,routeFirst:true,tools:[route]},e=>events.push(e),async(id,name)=>{
-  calls.push(name);return name==='route_request'?{data:{domain:'knowledge'},next_context:{system:'knowledge only',system_sha256:'checked',tools:[search]}}:{data:{items:[]}};
+ await execute({...packet,tools:[route]},e=>events.push(e),async(id,name)=>{
+  calls.push(name);return name==='prepare_disclosure_workflow'?{data:{domain:'knowledge'},next_context:{system:'knowledge only',system_sha256:'checked',tools:[search]}}:{data:{items:[]}};
  },(m,ctx,opts)=>{
   rounds++;
   if(rounds===2){assert.deepEqual(ctx.tools.map(t=>t.name),['knowledge_search']);assert.equal(ctx.systemPrompt,'knowledge only');}
-  const content=rounds===1?[{type:'text',text:'UNROUTED_REPLY_MUST_NOT_LEAK'},{type:'toolCall',id:'r',name:'route_request',arguments:{}}]:rounds===2?[{type:'toolCall',id:'s',name:'knowledge_search',arguments:{}}]:[{type:'text',text:'知识查询已完成'}];
+  const content=rounds===1?[{type:'text',text:'WORKFLOW_PROGRESS'},{type:'toolCall',id:'r',name:'prepare_disclosure_workflow',arguments:{}}]:rounds===2?[{type:'toolCall',id:'s',name:'knowledge_search',arguments:{}}]:[{type:'text',text:'知识查询已完成'}];
   return stream(content,rounds<3?'toolUse':'stop')(m,ctx,opts);
  });
- assert.deepEqual(calls,['route_request','knowledge_search']);assert.ok(!JSON.stringify(events).includes('UNROUTED_REPLY_MUST_NOT_LEAK'));
+ assert.deepEqual(calls,['prepare_disclosure_workflow','knowledge_search']);assert.ok(events.some(e=>e.type==='assistant'&&e.phase==='progress'&&e.text==='WORKFLOW_PROGRESS'));
  assert.ok(events.some(e=>e.type==='phase_started'));assert.equal(events.at(-1).type,'done');
 });
 
 const fixtureTool=name=>({name,description:'fixture',parameters:{type:'object',properties:{},additionalProperties:false}});
 
-test('lifecycle repair requests the available law registration tool',async()=>{
+test('a lifecycle text answer does not fabricate a registration or force another prompt',async()=>{
  let rounds=0;const events=[];
- await execute({...packet,stage:'lifecycle',requires_result:true,tools:[fixtureTool('lifecycle_submit')]},e=>events.push(e),async()=>({data:{saved:true},terminate:true}),(m,ctx,opts)=>{
-  rounds++;
-  if(rounds===1)return stream([{type:'text',text:'核验尚未登记'}])(m,ctx,opts);
-  const repair=JSON.stringify(ctx.messages.at(-1));assert.match(repair,/lifecycle_submit/);assert.doesNotMatch(repair,/submit_candidate/);
-  return stream([{type:'toolCall',id:'law-result',name:'lifecycle_submit',arguments:{}}],'toolUse')(m,ctx,opts);
+ await execute({...packet,stage:'lifecycle',requires_result:true,tools:[fixtureTool('lifecycle_submit')]},e=>events.push(e),()=>assert.fail('no registration requested'),(m,c,o)=>{
+  rounds++;return stream([{type:'text',text:'核验尚未登记'}])(m,c,o);
  });
- assert.equal(rounds,2);assert.equal(events.at(-1).type,'done');
+ assert.equal(rounds,1);assert.equal(events.at(-1).calls,0);assert.ok(!events.some(e=>e.type==='completion_repair_started'));
 });
 
 test('session resources are cleaned on both successful and failed provider calls',async()=>{
@@ -224,50 +208,42 @@ test('session resources are cleaned on both successful and failed provider calls
 
 test('routing, business and final answer all keep selected effort and output budget',async()=>{
  const events=[],options=[];let rounds=0;
- const route=fixtureTool('route_request'),submit=fixtureTool('submit_candidate');
- await execute({...packet,routeFirst:true,requires_result:false,reasoning_effort:'max',maxTokens:12000,routing_reasoning_effort:'low',routing_max_tokens:900,tools:[route]},e=>events.push(e),async(id,name)=>name==='route_request'?{
+ const route=fixtureTool('prepare_disclosure_workflow'),submit=fixtureTool('submit_candidate');
+ await execute({...packet,requires_result:false,reasoning_effort:'max',maxTokens:12000,routing_reasoning_effort:'low',routing_max_tokens:900,tools:[route]},e=>events.push(e),async(id,name)=>name==='prepare_disclosure_workflow'?{
   data:{domain:'disclosure'},next_context:{system:'assessment',system_sha256:'assessment-hash',stage:'assessment',requires_result:true,tools:[submit]},
  }:{data:{saved:true},terminate:true,finalize:true},(m,ctx,opts)=>{
   options.push(opts);rounds++;
-  return stream(rounds<3?[{type:'toolCall',id:'c'+rounds,name:rounds===1?'route_request':'submit_candidate',arguments:{}}]:[{type:'text',text:'已登记，待人工确认'}],rounds<3?'toolUse':'stop')(m,ctx,opts);
+  return stream(rounds<3?[{type:'toolCall',id:'c'+rounds,name:rounds===1?'prepare_disclosure_workflow':'submit_candidate',arguments:{}}]:[{type:'text',text:'已登记，待人工确认'}],rounds<3?'toolUse':'stop')(m,ctx,opts);
  });
  assert.deepEqual(options.map(o=>[o.reasoning,o.maxTokens]),[['max',12000],['max',12000],['max',12000]]);
  assert.ok(events.filter(e=>['started','phase_started'].includes(e.type)).every(e=>e.reasoning_effort==='max'));
  const starts=events.filter(e=>e.type==='model_call_started'),ends=events.filter(e=>e.type==='model_call_finished');
- assert.deepEqual(starts.map(e=>e.phase),['routing','working','final']);
+ assert.deepEqual(starts.map(e=>e.phase),['working','working','final']);
  assert.equal(starts[1].stage,'assessment');assert.equal(ends.length,3);
  assert.ok(ends.every(e=>e.elapsed_ms>=0&&e.usage.totalTokens===20&&!('cost' in e.usage)));
 });
 
-test('completion repairs continue beyond both former caps and can succeed',async()=>{
- const events=[];let rounds=0;
- await execute({...packet,stage:'assessment',requires_result:true,tools:[fixtureTool('submit_candidate')]},e=>events.push(e),async()=>({data:{saved:true},terminate:true}),(m,c,o)=>{
-  rounds++;return stream(rounds<=12?[{type:'text',text:'still working'}]:[{type:'toolCall',id:'save',name:'submit_candidate',arguments:{}}],rounds<=12?'stop':'toolUse')(m,c,o);
- });
- assert.equal(rounds,13);assert.equal(events.filter(e=>e.type==='completion_repair_started').length,12);assert.equal(events.at(-1).type,'done');
+test('the native tool loop can revise a rejected submission beyond the former caps',async()=>{
+ const events=[];let rounds=0,submissions=0;
+ await execute({...packet,stage:'assessment',tools:[fixtureTool('submit_candidate')]},e=>events.push(e),async()=>{
+  return ++submissions<13?{data:{status:'revise'}}:{data:{saved:true},terminate:true};
+ },(m,c,o)=>{rounds++;return stream([{type:'toolCall',id:'save-'+rounds,name:'submit_candidate',arguments:{}}],'toolUse')(m,c,o);});
+ assert.equal(rounds,13);assert.equal(submissions,13);assert.ok(!events.some(e=>e.type==='completion_repair_started'));assert.equal(events.at(-1).type,'done');
 });
 
-test('correction can submit a result and advance through successive scoped nodes',async()=>{
- const events=[],stages=['assessment','draft','review'];let rounds=0,submitted=0;
- const submit=fixtureTool('submit_candidate');
- await execute({...packet,stage:stages[0],requires_result:true,tools:[submit]},e=>events.push(e),async()=>{
-  submitted++;
-  return submitted<3?{data:{result_snapshot:{stage:stages[submitted-1],result:{summary:'saved-'+submitted}}},terminate:true,finalize:true,
-   next_context:{system:stages[submitted],system_sha256:'hash-'+submitted,stage:stages[submitted],requires_result:true,tools:[submit]}}
+test('native tool submissions advance successive workflow contexts before one closing reply',async()=>{
+ const events=[],stages=['assessment','draft','review'];let rounds=0,submitted=0;const submit=fixtureTool('submit_candidate');
+ await execute({...packet,stage:stages[0],tools:[submit]},e=>events.push(e),async()=>{
+  submitted++;return submitted<3?{data:{result_snapshot:{stage:stages[submitted-1],result:{summary:'saved-'+submitted}}},
+   next_context:{system:stages[submitted],system_sha256:'hash-'+submitted,stage:stages[submitted],tools:[submit]}}
    :{data:{saved:true},terminate:true,finalize:true};
  },(m,ctx,opts)=>{
-  rounds++;
-  if(rounds===4){assert.equal(ctx.systemPrompt,'draft');assert.ok(JSON.stringify(ctx.messages).includes('saved-1'));}
-  if(rounds===7)assert.equal(ctx.systemPrompt,'review');
-  if(rounds===10)assert.equal(ctx.tools.length,0);
-  return stream(rounds%3===0?[{type:'toolCall',id:'s'+rounds,name:'submit_candidate',arguments:{}}]:[{type:'text',text:'已有分析文字'}],rounds%3===0?'toolUse':'stop')(m,ctx,opts);
+  rounds++;if(rounds===2){assert.equal(ctx.systemPrompt,'draft');assert.ok(JSON.stringify(ctx.messages).includes('saved-1'));}
+  if(rounds===3)assert.equal(ctx.systemPrompt,'review');if(rounds===4)assert.equal(ctx.tools.length,0);
+  return stream(rounds<4?[{type:'toolCall',id:'s'+rounds,name:'submit_candidate',arguments:{}}]:[{type:'text',text:'已完成，待确认'}],rounds<4?'toolUse':'stop')(m,ctx,opts);
  });
- assert.equal(rounds,10);assert.equal(submitted,3);
- assert.deepEqual(events.filter(e=>e.type==='completion_repair_started').map(e=>[e.stage,e.attempt]),[
-  ['assessment',1],['assessment',2],['draft',1],['draft',2],['review',1],['review',2],
- ]);
- assert.equal(events.filter(e=>e.type==='finalization_started').length,1);
- assert.equal(events.at(-1).type,'done');assert.ok(!events.some(e=>e.type==='completion_incomplete'));
+ assert.equal(rounds,4);assert.equal(submitted,3);assert.equal(events.filter(e=>e.type==='finalization_started').length,1);
+ assert.ok(!events.some(e=>e.type==='completion_repair_started'));assert.equal(events.at(-1).type,'done');
 });
 
 test('request information and other authoritative gates stop without correction or further tools',async()=>{
@@ -352,7 +328,7 @@ test('cleanup failure cannot emit done after either a complete or incomplete rou
   try {
    await assert.rejects(execute({...packet,requires_result:requiresResult},e=>events.push(e),()=>assert.fail(),stream([{type:'text',text:'PRESERVED_OUTPUT'}])),/Failed to cleanup session resources/);
    assert.ok(events.some(e=>e.type==='assistant'&&e.text==='PRESERVED_OUTPUT'));
-   assert.equal(events.some(e=>e.type==='completion_incomplete'),requiresResult);
+   assert.ok(!events.some(e=>e.type==='completion_incomplete'));
    assert.ok(!events.some(e=>e.type==='done'));
    assert.equal(events.at(-1).type,'session_cleanup');assert.equal(events.at(-1).status,'failed');
    assert.ok(events.at(-1).elapsed_ms>=0);
@@ -360,30 +336,23 @@ test('cleanup failure cannot emit done after either a complete or incomplete rou
  }
 });
 
-test('routing repairs have no fixed cap and remain cancellable',async()=>{
- const events=[];let rounds=0;const cancel=new AbortController();
- await assert.rejects(execute({...packet,routeFirst:true,tools:[fixtureTool('route_request')]},e=>events.push(e),()=>assert.fail(),(m,c,o)=>{
-  if(++rounds===12)cancel.abort();
-  return stream([{type:'text',text:'UNROUTED_TEXT'}])(m,c,o);
- },cancel.signal),/Cancelled/);
- assert.equal(rounds,12);assert.ok(!events.some(e=>e.type==='done'));assert.ok(!JSON.stringify(events).includes('UNROUTED_TEXT'));
-});
+
 
 test('Pi reports invalid arguments and unknown tools without exposing argument payloads',async()=>{
  const events=[];let rounds=0;
- const route={...fixtureTool('route_request'),parameters:{type:'object',properties:{domain:{type:'string'}},required:['domain'],additionalProperties:false}};
- await execute({...packet,routeFirst:true,requires_result:false,tools:[route]},e=>events.push(e),async()=>({data:{},terminate:true}),(m,ctx,opts)=>{
+ const route={...fixtureTool('prepare_disclosure_workflow'),parameters:{type:'object',properties:{domain:{type:'string'}},required:['domain'],additionalProperties:false}};
+ await execute({...packet,requires_result:false,tools:[route]},e=>events.push(e),async()=>({data:{},terminate:true}),(m,ctx,opts)=>{
   rounds++;
   return stream(rounds===1?[
    {type:'thinking',thinking:'PRIVATE_THINKING_SENTINEL'},
-   {type:'toolCall',id:'invalid',name:'route_request',arguments:{headers:'PRIVATE_HEADERS_SENTINEL',thinking:'PRIVATE_ARGUMENT_SENTINEL'}},
+   {type:'toolCall',id:'invalid',name:'prepare_disclosure_workflow',arguments:{headers:'PRIVATE_HEADERS_SENTINEL',thinking:'PRIVATE_ARGUMENT_SENTINEL'}},
    {type:'toolCall',id:'missing',name:'unknown_tool',arguments:{}},
-  ]:[{type:'toolCall',id:'valid',name:'route_request',arguments:{domain:'disclosure'}}],'toolUse')(m,ctx,opts);
+  ]:[{type:'toolCall',id:'valid',name:'prepare_disclosure_workflow',arguments:{domain:'disclosure'}}],'toolUse')(m,ctx,opts);
  });
  const failures=events.filter(e=>e.type==='tool_validation_failed');
- assert.deepEqual(failures.map(e=>e.tool),['route_request','unknown_tool']);
+ assert.deepEqual(failures.map(e=>e.tool),['prepare_disclosure_workflow','unknown_tool']);
  assert.match(failures[0].error,/Validation failed/);assert.match(failures[1].error,/not found/);
- assert.ok(failures.every(e=>e.phase==='routing'));
+ assert.ok(failures.every(e=>e.phase==='working'));
  assert.ok(!JSON.stringify(events).includes('PRIVATE_'));assert.ok(!JSON.stringify(failures).includes('Received arguments'));
 });
 

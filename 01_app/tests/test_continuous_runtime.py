@@ -23,8 +23,8 @@ def setup(c,r,mode='text'):
 def runner_for(runtime,word=False):
  def runner(packet,emit,bridge,stop):
   emit({'type':'started'})
-  if packet.get('stage')=='word':bridge('make_word',{});emit({'type':'done'});return
-  result=bridge('route_request',{'domain':'disclosure','intent':'workflow','reason':'受控测试按明确请求制作正文'})
+  if packet.get('stage')=='word':bridge('make_word',{});emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'});return
+  result=bridge('prepare_disclosure_workflow',{'request_quote':packet['prompt']})
   assert result['next_context']['stage']=='assessment'
   result=bridge('submit_candidate',{'result':candidate()})
   assert result['next_context']['stage']=='plan'
@@ -44,7 +44,7 @@ def runner_for(runtime,word=False):
   assert result['next_context']['stage']=='draft'
   result=bridge('submit_candidate',{'result':draft})
   assert result['terminate'] and result['data']['outcome']=='waiting_approval'
-  emit({'type':'done'})
+  emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
  return runner
 
 
@@ -79,15 +79,15 @@ def test_word_after_human_confirmation_resumes_once_with_original_model(control)
  assert [x['node'] for x in saved['approval_records'] if x['state']=='current']==['draft']
 
 
-def test_goal_stage_hint_does_not_poison_routing_revision(control):
+def test_explicit_workflow_starts_the_current_node_before_the_requested_goal(control):
  c,r,_=control;s,e=setup(c,r)
  def model(packet,emit,bridge,stop):
-  routed=bridge('route_request',{'domain':'disclosure','intent':'workflow','stage':'draft','reason':'最终目标是正文，先执行当前合法节点'})
+  routed=bridge('prepare_disclosure_workflow',{'request_quote':packet['prompt']})
   assert routed['next_context']['stage']=='assessment'
   bridge('request_information',{'questions':['仅验证从正确节点结束']});emit({'type':'done'})
  r.runner=model;out=settled(c,send_auto(c,s,'起草正文',expected_revision=e['revision']))
  assert out['run']['stage']=='assessment' and out['run']['status']=='waiting_user'
- assert any(x['kind']=='stage_hint_corrected' for x in out['events'])
+ assert any(x['kind']=='business_workflow_selected' for x in out['events'])
 
 
 def test_queued_word_continuation_can_be_paused_before_parent_settles(control):

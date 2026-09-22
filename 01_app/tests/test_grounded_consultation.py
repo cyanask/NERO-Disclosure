@@ -103,9 +103,9 @@ def test_download_still_blocks_private_addresses(monkeypatch,address):
 def test_ungrounded_answer_is_published_and_completes(client):
     c,runtime,_=client;s=session(runtime)
     def runner(packet,emit,bridge,stop):
-        routed=bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'咨询'})
-        assert routed['next_context']['requires_result'] is False
-        assert 'request_information' in [t['name'] for t in routed['next_context']['tools']]
+        routed=bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
+        assert packet['requires_result'] is False
+        assert 'request_information' in [t['name'] for t in packet['tools']]
         emit({'type':'text_delta','message':0,'delta':'无依据的16:00断言'})
         emit({'type':'assistant','text':'无依据的16:00断言','message':0,'stopReason':'stop'})
         emit({'type':'done'})
@@ -124,10 +124,9 @@ def test_consultation_grounded_answer_and_render_exact_reply(client):
     original=runtime.operation
     runtime.operation=lambda rid,name,args: {'text':text,'source_kind':'official_rule','url':'https://example.org/fixture'} if name=='library.read' else original(rid,name,args)
     def consult(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'咨询'})
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         result=bridge('submit_consultation',{'text':text,'basis':[{'statement':text,'source_id':'library:fixture','quote':text}]})
-        assert result['terminate']
-        emit({'type':'assistant','message':0,'text':'追加一条未经核实的新结论','stopReason':'stop'})
+        assert result['data']['status']=='completed'
         emit({'type':'done'})
     runtime.runner=consult
     first=settled(c,request(c,s,'查询办理时限'))
@@ -137,13 +136,12 @@ def test_consultation_grounded_answer_and_render_exact_reply(client):
     assert not any(e['kind']=='document_gap_notice' for e in first['events'])
     source={'reply_run_id':first['run']['id'],'reply_message_seq':answers[0]['seq']}
     def render(packet,emit,bridge,stop):
-        routed=bridge('route_request',{'domain':'disclosure','intent':'document','document_kind':'analysis','document_action':'render','reason':'原回复转Word',**source})
-        assert {'make_word','read_document','knowledge_web_search'} <= {t['name'] for t in routed['next_context']['tools']}
-        assert routed['next_context']['stage']=='document'
-        with pytest.raises(HTTPException):bridge('make_word',{'documents':[draft(text='擅自改写')]})
-        result=bridge('make_word',{})
+        routed=bridge('read_document_context',{})
+        assert {'make_word','read_document','knowledge_web_search'} <= {t['name'] for t in packet['tools']}
+        with pytest.raises(HTTPException):bridge('make_word',{'source_reply':{'run_id':source['reply_run_id'],'message_seq':source['reply_message_seq']},'documents':[draft(text='擅自改写')]})
+        result=bridge('make_word',{'source_reply':{'run_id':source['reply_run_id'],'message_seq':source['reply_message_seq']}})
         assert result['data']['documents']
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=render
     second=settled(c,request(c,s,'把刚才回复制作成Word'))
     assert second['run']['status']=='completed',second['run'].get('reason')
@@ -159,9 +157,9 @@ def test_invalid_binding_and_missing_review_only_add_reminders(client):
     c,runtime,_=client;s=session(runtime)
     review_only(runtime,{'不应展示'})
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'咨询'})
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         reply=bridge('submit_consultation',{'text':'不应展示','basis':[{'statement':'不应展示','source_id':'user:0','quote':'伪造原句'}]})
-        assert reply['data']['status']=='completed' and reply['terminate'] and reply['data']['warnings']
+        assert reply['data']['status']=='completed' and 'terminate' not in reply and reply['data']['warnings']
         emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'咨询'))
@@ -176,9 +174,9 @@ def test_invalid_binding_and_missing_review_only_add_reminders(client):
     runtime.semantic_review=lambda *a:(None,'invalid_result')
     other=session(runtime)
     def broken(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'咨询'})
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         reply=bridge('submit_consultation',{'text':text,'basis':[{'statement':text,'source_id':'library:fixture','quote':text}]})
-        assert reply['terminate'] and any('依据复核未完成' in w['reason'] for w in reply['data']['warnings'])
+        assert 'terminate' not in reply and any('依据复核未完成' in w['reason'] for w in reply['data']['warnings'])
         emit({'type':'done'})
     runtime.runner=broken
     second=settled(c,request(c,other,'咨询'))
@@ -192,14 +190,14 @@ def test_evidence_reminders_name_the_exact_failure(client):
     original=runtime.operation
     runtime.operation=lambda rid,name,args: {'text':text,'source_kind':'official_rule','url':'https://example.org/fixture'} if name=='library.read' else original(rid,name,args)
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'咨询'})
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         reply=bridge('submit_consultation',{'text':text,'basis':[
             {'statement':text,'source_id':'library:fixture','quote':'来源中不存在的原句'},
             {'statement':'正文中不存在的断言','source_id':'library:fixture','quote':text}]})
         reasons=[w['reason'] for w in reply['data']['warnings']]
         assert any('引文在所引来源中定位不到' in r for r in reasons)
         assert any('未逐字出现在提交正文中' in r for r in reasons)
-        assert reply['terminate'] and reply['data']['status']=='completed'
+        assert 'terminate' not in reply and reply['data']['status']=='completed'
         emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'查询办理时限'))
@@ -210,12 +208,11 @@ def test_word_evidence_does_not_block_save_or_create_numeric_gap(client):
     c,runtime,_=client;s=session(runtime)
     review_only(runtime,set())
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','document_action':'create','reason':'研究后起草'})
         doc=draft(text='必须在16:00前支付987654万元。')
-        bridge('assess_document_readiness',{'documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
         result=bridge('make_word',{'documents':[doc]})
         assert result['data']['documents']
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'研究后制作Word，缺项标注待补。'))
     assert out['run']['status']=='completed',out
@@ -244,13 +241,12 @@ def test_word_save_preserves_existing_gap_consent_without_evidence_repair(client
     original=runtime.operation
     runtime.operation=lambda rid,name,args: {'text':fact,'source_kind':'official_rule'} if name=='library.read' else original(rid,name,args)
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','document_action':'create','reason':'制作待补稿'})
         doc=draft(text=marker+'\n必须在15:00前到账。',pending=['实施参数'])
         gap={'label':'实施参数','category':'content','state':'missing','reason':'未提供实施参数'}
-        bridge('assess_document_readiness',{'documents':[readiness(doc,[gap])],'request_quote':packet['prompt'],
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(doc,[gap])],'request_quote':packet['prompt'],
             'decision':'draft_with_placeholders','choice_quote':packet['prompt']})
         assert bridge('make_word',{'documents':[doc]})['data']['documents']
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'先按现有资料制作Word，缺项标注待补。'))
     assert out['run']['status']=='completed',out['run']
@@ -291,13 +287,11 @@ def test_confirmed_model_generated_analysis_requires_anchors(client):
     index['documents'][0]['versions'][0]['review_status']='accepted'
     (document_store.folder(runtime,s['id'])/'index.json').write_text(json.dumps(index))
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','document_action':'revise',
-            'target_document_id':source['document_id'],'reason':'局部修改'})
         item=draft(title='人工修改稿',document_id=source['document_id'],base_version=1,text='整篇重写')
-        bridge('assess_document_readiness',{'documents':[readiness(item)],'request_quote':packet['prompt'],'decision':'assess'})
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(item)],'request_quote':packet['prompt'],'decision':'assess'})
         with pytest.raises(HTTPException) as error:bridge('make_word',{'documents':[item]})
         assert error.value.status_code==409 and '局部' in error.value.detail
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'局部修改原Word'))
     assert out['run']['status']=='incomplete'

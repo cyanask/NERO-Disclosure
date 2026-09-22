@@ -17,9 +17,9 @@ def announcement_draft(template_id,text):
 
 def consult(runtime, answer='该事项需先核对披露范围，然后拟写公告。'):
     def run(packet,emit,bridge,stop):
-        routed=bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'信披问题'})
-        assert 'disclosure-consultation' in routed['next_context']['system']
-        assert '不为每个问题执行同一套固定步骤' in routed['next_context']['system']
+        routed=bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
+        assert 'disclosure-consultation' in routed['data']['instructions']
+        assert '不为每个问题执行同一套固定步骤' in routed['data']['instructions']
         emit({'type':'assistant','text':answer,'phase':'final','stopReason':'stop'})
         emit({'type':'done'})
     runtime.runner=run
@@ -27,17 +27,16 @@ def consult(runtime, answer='该事项需先核对披露范围，然后拟写公
 
 def write_announcement(runtime, *,expected_consult=None, text=ANNOUNCEMENT_TEXT):
     def run(packet,emit,bridge,stop):
-        routed=bridge('route_request',{'domain':'disclosure','intent':'announcement','reason':'用户开始拟公告'})
-        assert routed['next_context']['stage']=='document_preflight'
-        names=[t['name'] for t in routed['next_context']['tools']]
+        routed=bridge('load_business_skill',{'skill_id':'disclosure-announcement-drafting'})
+        names=[t['name'] for t in packet['tools']]
         assert 'assess_document_readiness' in names and 'save_announcement' in names
-        assert 'name: disclosure-announcement-drafting' in routed['next_context']['system']
+        assert 'name: disclosure-announcement-drafting' in routed['data']['instructions']
         ctx=bridge('read_document_context',{})['data']
         if expected_consult:assert ctx['latest_consultation']['run_id']==expected_consult
         selected=next(t for t in ctx['templates'] if t.get('kind')=='related_transaction')
         bridge('read_document_template',{'template_id':selected['id']})
         document=announcement_draft(selected['id'],text)
-        opened=bridge('assess_document_readiness',{'documents':[readiness(document)],'request_quote':packet['prompt'],'decision':'assess'})
+        opened=bridge('assess_document_readiness',{'output':'text','documents':[readiness(document)],'request_quote':packet['prompt'],'decision':'assess'})
         assert 'save_announcement' in [t['name'] for t in opened['next_context']['tools']],opened
         assessment={'disclosure_needed':'yes','disclosure_scope':'事项、金额、审议及风险','reason':'根据当前用户条件拟写'}
         if expected_consult:assessment['consultation_run_id']=expected_consult
@@ -93,8 +92,8 @@ def test_plain_user_confirmation_binds_text_then_word_can_reuse_it(client):
     write_announcement(runtime);settled(c,request(c,s,'拟资助1000万元，请拟公告。'))
     row=listing(c,s)['items'][0]
     def confirm(packet,emit,bridge,stop):
-        result=bridge('route_request',{'domain':'disclosure','intent':'confirm_text','reason':'用户确认当前公告正文'})
-        assert result['terminate'];emit({'type':'done'})
+        result=bridge('confirm_announcement_text',{})
+        assert result['data']['status']=='text_confirmed';emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=confirm
     out=settled(c,request(c,s,'确认'))
     assert out['run']['status']=='completed',out
@@ -115,7 +114,7 @@ def test_plain_user_confirmation_binds_text_then_word_can_reuse_it(client):
 def test_approval_of_a_plan_does_not_confirm_unseen_or_changed_text(client):
     c,runtime,_=client;s,_=new_session(c)
     write_announcement(runtime);settled(c,request(c,s,'拟资助1000万元，请拟公告。'))
-    def wrong(packet,emit,bridge,stop):bridge('route_request',{'domain':'disclosure','intent':'confirm_text','reason':'错误地把认可方案当全文确认'})
+    def wrong(packet,emit,bridge,stop):bridge('confirm_announcement_text',{})
     runtime.runner=wrong
     assert settled(c,request(c,s,'认可方案，请继续修改第二部分'))['run']['status']=='failed'
     assert listing(c,s)['items'][0]['review_status']=='pending'
@@ -128,20 +127,14 @@ def test_announcement_modification_routes_to_existing_word(client):
                                  'kind':'announcement','template_id':row['template_id'],'pending':row['pending'],'basis':[]}])
     settled(c,request(c,s,'生成公告Word'));row=listing(c,s)['items'][0]
     def route(packet,emit,bridge,stop):
-        result=bridge('route_request',{'domain':'disclosure','intent':'announcement','document_action':'revise',
-                                      'target_document_id':row['document_id'],'reason':'修改已有公告'})
-        assert result['data']['intent']=='document'
-        assert result['next_context']['stage']=='document_preflight'
-        assert 'assess_document_readiness' in [t['name'] for t in result['next_context']['tools']]
+        result=bridge('load_business_skill',{'skill_id':'disclosure-announcement-drafting'})
+        assert result['data']['id']=='disclosure-announcement-drafting'
+        assert 'assess_document_readiness' in [t['name'] for t in packet['tools']]
         from fastapi import HTTPException
-        with pytest.raises(HTTPException) as error:
-            bridge('assess_document_readiness',{'documents':[readiness({'title':'另一份公告','kind':'announcement'})],
-                                               'request_quote':packet['prompt'],'decision':'assess'})
-        assert error.value.status_code==409
-        opened=bridge('assess_document_readiness',{'documents':[readiness({'document_id':row['document_id'],'title':row['title'],'kind':'announcement'})],
+        opened=bridge('assess_document_readiness',{'output':'word','documents':[readiness({'document_id':row['document_id'],'title':row['title'],'kind':'announcement'})],
                                                    'request_quote':packet['prompt'],'decision':'assess'})
         assert 'make_word' in [t['name'] for t in opened['next_context']['tools']],opened
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=route
     assert settled(c,request(c,s,'修改这份公告'))['run']['status']=='incomplete'
     assert listing(c,s)['items'][0]['version']==2
@@ -151,17 +144,15 @@ def test_confirmation_and_word_in_one_message_records_only_current_text(client):
     c,runtime,_=client;s,_=new_session(c)
     write_announcement(runtime);settled(c,request(c,s,'拟资助1000万元，请拟公告。'));row=listing(c,s)['items'][0]
     def run(packet,emit,bridge,stop):
-        routed=bridge('route_request',{'domain':'disclosure','intent':'document','document_kind':'announcement',
-                                      'confirm_current_text':True,'reason':'用户确认当前正文并要求Word'})
-        assert routed['next_context']['stage']=='document_preflight'
+        bridge('confirm_announcement_text',{'target_document_id':row['document_id']})
         assert document_store.version(runtime,s['id'],row['document_id'])['review_status']=='accepted'
         document={'document_id':row['document_id'],'base_version':1,'title':row['title'],
             'kind':'announcement','template_id':row['template_id'],'pending':row['pending'],'basis':[]}
         bridge('read_document_context',{})
-        opened=bridge('assess_document_readiness',{'documents':[readiness(document)],'request_quote':packet['prompt'],'decision':'assess'})
+        opened=bridge('assess_document_readiness',{'output':'word','documents':[readiness(document)],'request_quote':packet['prompt'],'decision':'assess'})
         assert 'make_word' in [t['name'] for t in opened['next_context']['tools']],opened
         bridge('make_word',{'documents':[document]})
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=run
     out=settled(c,request(c,s,'确认，请制作成Word'))
     assert out['run']['status']=='completed',out
@@ -172,27 +163,29 @@ def test_confirmation_and_word_in_one_message_records_only_current_text(client):
 
 def test_word_kind_cannot_silently_switch_announcement_to_consultation(client):
     c,runtime,_=client;s,_=new_session(c)
+    write_announcement(runtime);settled(c,request(c,s,'拟资助1000万元，请拟公告。'))
+    row=listing(c,s)['items'][0]
     def run(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','document_kind':'announcement','reason':'公告Word'})
         bridge('read_document_context',{})
         from fastapi import HTTPException
         with pytest.raises(HTTPException) as error:
-            bridge('assess_document_readiness',{'documents':[readiness(draft())],'request_quote':packet['prompt'],'decision':'assess'})
-        assert error.value.status_code==422
+            bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft(document_id=row['document_id'],base_version=1))],'request_quote':packet['prompt'],'decision':'assess'})
+        assert error.value.status_code==409
         emit({'type':'done'})
     runtime.runner=run
     assert settled(c,request(c,s,'制作公告Word'))['run']['status']=='incomplete'
-    assert listing(c,s)['items']==[]
+    assert listing(c,s)['items'][0]['document_id']==row['document_id']
+    assert listing(c,s)['items'][0]['format']=='text'
 
 
 def test_announcement_gap_notice_precedes_text_draft(client):
     """The controller tells the user what is missing before any text version exists."""
     c,runtime,_=client;s,e=new_session(c);before=c.get('/api/events/'+e['id']).json()
     def notice(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'announcement','reason':'用户开始拟公告'})
+        bridge('load_business_skill',{'skill_id':'disclosure-announcement-drafting'})
         ctx=bridge('read_document_context',{})['data']
         selected=next(t for t in ctx['templates'] if t.get('kind')=='related_transaction')
-        result=bridge('assess_document_readiness',{'documents':[readiness(announcement_draft(selected['id'],ANNOUNCEMENT_PENDING),[ANNOUNCEMENT_GAP])],
+        result=bridge('assess_document_readiness',{'output':'text','documents':[readiness(announcement_draft(selected['id'],ANNOUNCEMENT_PENDING),[ANNOUNCEMENT_GAP])],
                                                    'request_quote':packet['prompt'],'decision':'assess'})
         assert result['terminate'] and result['data']['status']=='waiting_user',result
         assert any('审议情况' in question for question in result['data']['questions'])
@@ -203,17 +196,17 @@ def test_announcement_gap_notice_precedes_text_draft(client):
     assert listing(c,s)['items']==[]
     notice_id=first['run']['document_preflight']['notice_id']
     def accept(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'announcement','drafting_notice_id':notice_id,'reason':'用户接受已告知缺口'})
+        bridge('load_business_skill',{'skill_id':'disclosure-announcement-drafting'})
         ctx=bridge('read_document_context',{})['data']
         selected=next(t for t in ctx['templates'] if t.get('kind')=='related_transaction')
         document=announcement_draft(selected['id'],ANNOUNCEMENT_PENDING)
-        opened=bridge('assess_document_readiness',{'documents':[readiness(document,[ANNOUNCEMENT_GAP])],'request_quote':packet['prompt'],
+        opened=bridge('assess_document_readiness',{'output':'text','documents':[readiness(document,[ANNOUNCEMENT_GAP])],'request_quote':packet['prompt'],
                                                    'decision':'proceed_with_gaps','notice_id':notice_id,'choice_quote':packet['prompt']})
         assert 'save_announcement' in [t['name'] for t in opened['next_context']['tools']],opened
         result=bridge('save_announcement',{'assessment':{'disclosure_needed':'yes','disclosure_scope':'事项、金额、审议及风险',
             'reason':'用户接受已告知缺口后保存待补正文'},'documents':[document]})
         assert result['data']['text_saved'] is True
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=accept
     second=settled(c,request(c,s,ANNOUNCEMENT_ACCEPT))
     assert second['run']['status']=='completed',second

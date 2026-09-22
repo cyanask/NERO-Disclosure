@@ -9,7 +9,7 @@ from backend import document_runtime as dispatch, document_preflight as prefligh
 
 class Store:
     def __init__(self, **values):
-        self.value={'id':'fixture-run','stage':'document','intent_domain':'disclosure',**values}
+        self.value={'id':'fixture-run','stage':'document','intent_domain':'disclosure','event_id':'conversation:fixture','session_id':'fixture','board':'chinext',**values}
     def run(self, rid):
         return copy.deepcopy(self.value)
     def update(self, rid, **values):
@@ -27,6 +27,7 @@ def runtime(**values):
 def test_deferred_preflight_does_not_consume_production_attempts(monkeypatch):
     engine=runtime()
     held={'data':{'status':'preflight_required'},'next_context':{'stage':'document_preflight'}}
+    monkeypatch.setattr(dispatch,'context',lambda *args:{})
     monkeypatch.setattr(preflight,'enforce',lambda *args:held)
     monkeypatch.setattr(dispatch,'make_word',lambda *args,**kwargs:pytest.fail('must not generate'))
     for _ in range(5):
@@ -37,6 +38,7 @@ def test_deferred_preflight_does_not_consume_production_attempts(monkeypatch):
 
 def test_ready_dispatch_preserves_existing_generation_attempt_control(monkeypatch):
     engine=runtime()
+    monkeypatch.setattr(dispatch,'context',lambda *args:{})
     monkeypatch.setattr(preflight,'enforce',lambda *args:None)
     monkeypatch.setattr(dispatch,'make_word',lambda *args,**kwargs:{'data':{'fixture':True}})
     assert dispatch.execute(engine,'fixture-run','make_word',{},threading.Event())['data']['fixture']
@@ -45,6 +47,7 @@ def test_ready_dispatch_preserves_existing_generation_attempt_control(monkeypatc
 
 def test_actual_generation_failure_is_not_silently_retried_or_count_reset(monkeypatch):
     engine=runtime(document_attempts=2)
+    monkeypatch.setattr(dispatch,'context',lambda *args:{})
     monkeypatch.setattr(preflight,'enforce',lambda *args:None)
     traced=[];engine.trace=lambda *args:traced.append(args)
     def fail(*args,**kwargs):
@@ -85,20 +88,22 @@ def test_read_in_chat_never_switches_into_production(monkeypatch):
     assert 'next_context' not in dispatch.execute(engine,'fixture-run','read_document_context',{},threading.Event())
 
 
-def test_non_disclosure_domain_cannot_call_document_writer(monkeypatch):
-    """制文工具按业务域开放；域外调用不得读取用户原话或触达制文门禁。"""
-    monkeypatch.setattr(preflight,'enforce',lambda *args:pytest.fail('domain must reject before the write gate'))
+def test_closed_run_cannot_call_document_writer(monkeypatch):
+    """本轮已等待用户时，不得继续读取上下文或调用制文门禁。"""
+    monkeypatch.setattr(dispatch,'context',lambda *args:{})
+    monkeypatch.setattr(preflight,'enforce',lambda *args:pytest.fail('closed run must reject before the write gate'))
     monkeypatch.setattr(preflight,'current_user',lambda *args:pytest.fail('domain must reject before reading the user message'))
     with pytest.raises(HTTPException) as exc:
-        dispatch.execute(runtime(intent_domain='knowledge',stage='chat'),'fixture-run','make_word',{},threading.Event())
-    assert exc.value.status_code==403
+        dispatch.execute(runtime(outcome='waiting_user',stage='chat'),'fixture-run','make_word',{},threading.Event())
+    assert exc.value.status_code==409
 
 
 def test_disclosure_tool_call_binds_the_output_mode_from_the_user_message(monkeypatch):
     """咨询阶段也可调用制文工具；阶段标签不授权，输出目标按本轮要求登记并保留门禁。"""
     engine=runtime(stage='chat')
+    monkeypatch.setattr(dispatch,'context',lambda *args:{})
     monkeypatch.setattr(preflight,'enforce',lambda *args:None)
     monkeypatch.setattr(dispatch,'make_word',lambda *args,**kwargs:{'data':{'fixture':True}})
     assert dispatch.execute(engine,'fixture-run','make_word',{},threading.Event())['data']['fixture']
-    assert engine.store.value['stage']=='document' and engine.store.value['intent']=='document'
+    assert engine.store.value['stage']=='document' and engine.store.value['document_action']=='create'
     assert engine.store.value['document_attempts']==1

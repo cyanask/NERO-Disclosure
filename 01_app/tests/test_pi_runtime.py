@@ -54,16 +54,13 @@ def test_pi_packet_has_no_fixed_round_deadline(client):
 
 
 def send(c,s,e,stage='chat',**extra):
-    # The fixture model explicitly selects its test intent through the real routing guard.
     runtime=c.app.state.pi_runtime
     original=getattr(runtime.runner,'_unrouted_fixture',runtime.runner)
     if original:
         def scoped(packet,emit,bridge,stop):
-            if packet.get('routeFirst'):
-                choice={'domain':'disclosure','intent':'consult' if stage=='chat' else 'workflow','reason':'隔离测试模型按用例选择意图'}
-                if stage!='chat':choice['stage']=stage
-                routed=bridge('route_request',choice)
-                packet={**packet,'system':routed['next_context']['system'],'tools':routed['next_context']['tools'],'routeFirst':False}
+            if stage in ('assessment','plan','template','draft','word'):
+                prepared=bridge('prepare_disclosure_workflow',{'request_quote':packet['prompt']})
+                packet={**packet,**prepared['next_context']}
             return original(packet,emit,bridge,stop)
         scoped._unrouted_fixture=original
         runtime.runner=scoped
@@ -88,6 +85,7 @@ def test_chat_identity_project_skill_and_model_switch(client):
     runtime.semantic_review=lambda rid,run,items,stop: ([{'item_id':r['item_id'],'verdict':'supported' if r['value']=='公开回复' else 'insufficient','reason':'固定隔离回复，不含业务结论'} for r in items],'fixture')
     original=runner
     def checked(packet,emit,bridge,stop):
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         original(packet,emit,bridge,stop)
         bridge('submit_consultation',{'text':'公开回复','basis':[]})
     runtime.runner=checked
@@ -167,7 +165,7 @@ def test_model_and_board_scope_fail_closed(client):
         emit({'type':'started'})
         for name,args in [('read_event',{'event_id':'other'}),('human.confirm',{})]:
             with pytest.raises(HTTPException) as exc:bridge(name,args)
-            assert exc.value.status_code==403
+            assert exc.value.status_code==(422 if name=='human.confirm' else 403)
         emit({'type':'done'})
     runtime.runner=attempt;r,_=send(c,s,e);assert settled(c,r)['run']['status']=='incomplete'
 
@@ -231,7 +229,7 @@ def test_legacy_resume_registered_script_keeps_its_historical_confirmation_contr
     token=CALLERS[0]
     e,_=ready(c,token);s,e=new_session(c,e)
     def runner(p,emit,bridge,stop):
-        emit({'type':'started'});assert bridge('make_word',{})['terminate'];emit({'type':'done'})
+        emit({'type':'started'});assert bridge('make_word',{})['terminate'];emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=runner
     # Only an internal legacy continuation uses the historical frozen-word stage.
     # New browser requests route to the independent document capability.

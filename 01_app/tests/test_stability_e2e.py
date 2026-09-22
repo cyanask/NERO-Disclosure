@@ -17,7 +17,7 @@ from backend import document_runtime
 
 
 @pytest.mark.parametrize('protocol', ['openai-completions', 'openai-responses'])
-def test_prose_repair_then_gap_choice_produces_downloadable_word(client, protocol):
+def test_native_preflight_then_gap_choice_produces_downloadable_word(client, protocol):
     c, runtime, _ = client
     session = runtime.store.create_session('chinext', '', '隔离稳定性回归', str(uuid4()))
     title = '董事会秘书变动公告工作稿'
@@ -32,7 +32,7 @@ def test_prose_repair_then_gap_choice_produces_downloadable_word(client, protoco
                     if t.get('kind') == 'management_change')
     first = '公司拟更换董秘，请制作公告Word。'
     second = '选择B，先制作Word。'
-    state = {'turn': 1, 'prose_sent': False, 'assessed': False, 'notice': None}
+    state = {'turn': 1, 'saved': False, 'assessed': False, 'notice': None}
     requests = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -44,24 +44,16 @@ def test_prose_repair_then_gap_choice_produces_downloadable_word(client, protoco
             requests.append((state['turn'], packet))
             names = [t.get('function', t)['name'] for t in packet.get('tools', [])]
             tool, args, answer = None, None, None
-            if 'route_request' in names:
-                tool, args = 'route_request', {'domain': 'disclosure', 'intent': 'document',
-                    'document_kind': 'announcement', 'reason': '用户要公告Word'}
-            # make_word 常驻工具面，但起草前核对未登记时会被门禁挡回；
-            # 模拟的模型必须像真实模型那样先登记核对，再制作文件。
-            elif 'assess_document_readiness' in names and not state['assessed']:
-                if not state['prose_sent']:
-                    state['prose_sent'] = True
-                    answer = 'A：补充资料。B：先制作待补稿。'
-                else:
-                    state['assessed'] = True
-                    tool, args = 'assess_document_readiness', {
-                        'documents': [document], 'request_quote': first if state['turn'] == 1 else second,
-                        'decision': 'assess' if state['turn'] == 1 else 'proceed_with_gaps',
-                    }
-                    if state['turn'] == 2:
-                        args.update(notice_id=state['notice'], choice_quote=second)
-            elif 'make_word' in names:
+            if 'assess_document_readiness' in names and not state['assessed']:
+                state['assessed'] = True
+                tool, args = 'assess_document_readiness', {
+                    'output':'word', 'documents': [document], 'request_quote': first if state['turn'] == 1 else second,
+                    'decision': 'assess' if state['turn'] == 1 else 'proceed_with_gaps',
+                }
+                if state['turn'] == 2:
+                    args.update(notice_id=state['notice'], choice_quote=second)
+            elif 'make_word' in names and not state['saved']:
+                state['saved'] = True
                 tool, args = 'make_word', {'documents': [{
                     'title': title, 'kind': 'announcement', 'template_id': template['id'],
                     'text': '# '+title+'\n\n一、变动情况\n【待补：'+labels[0]+'】\n\n二、审议程序\n【待补：'+labels[1]+'】',
@@ -113,17 +105,9 @@ def test_prose_repair_then_gap_choice_produces_downloadable_word(client, protoco
     try:
         notice = settled(c, send(first), timeout=30)
         assert notice['run']['status'] == 'waiting_user', notice
-        assert len([e for e in notice['events'] if e['kind'] == 'completion_repair_started']) == 1
+        assert not any(e['kind']=='completion_repair_started' for e in notice['events'])
         state['notice'] = notice['run']['document_preflight']['notice_id']
         messages_key = 'messages' if protocol == 'openai-completions' else 'input'
-        repair_requests = [p for turn, p in requests if turn == 1
-            and '系统内部执行纠偏' in str(p[messages_key][-1])]
-        assert len(repair_requests) == 1
-        repair = str(repair_requests[0][messages_key][-1])
-        # 纠偏动作只能指向起草前核对；结尾的工具清单是本轮真实工具面，不是行动指令。
-        instruction = repair.split('当前可用工具：')[0]
-        assert 'assess_document_readiness' in instruction
-        assert 'submit_candidate' not in instruction and 'request_information' not in instruction
         assert c.get(f'/api/chat/sessions/{session["id"]}/documents').json()['items'] == []
 
         state['turn'] = 2

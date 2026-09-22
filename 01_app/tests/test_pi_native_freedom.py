@@ -101,15 +101,15 @@ def test_consult_route_can_make_requested_word_after_more_than_three_failures(cl
         return real(*a,**kw)
     monkeypatch.setattr(document_runtime,'make_word',transient)
     def provider(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'故意选择咨询，验证工具不受阶段标签限制'})
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         bridge('read_document_context',{})
         doc=draft('跨阶段制文')
-        opened=bridge('assess_document_readiness',{'documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
+        opened=bridge('assess_document_readiness',{'output':'word','documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
         assert opened.get('next_context')
         for _ in range(5):
             with pytest.raises(HTTPException):bridge('make_word',{'documents':[doc]})
         assert bridge('make_word',{'documents':[doc]})['data']['documents']
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=reviewed(provider)
     result=settled(c,request(c,s,'请把分析制作成 Word'),timeout=45)
     assert result['run']['status']=='completed',result['run'].get('reason')
@@ -132,17 +132,17 @@ def test_parallel_research_cannot_cache_old_result_under_new_version():
 def test_word_tool_availability_does_not_turn_text_consent_into_word_consent(client):
     c,runtime,_=client;s=runtime.store.create_session('chinext','','output-object',str(uuid4()))
     def provider(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'announcement','reason':'只起草公告正文'})
+        bridge('load_business_skill',{'skill_id':'disclosure-announcement-drafting'})
         bridge('read_document_context',{})
         doc=draft('模拟公告',kind='announcement')
-        opened=bridge('assess_document_readiness',{'documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
+        opened=bridge('assess_document_readiness',{'output':'text','documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
         assert opened.get('next_context')
         held=bridge('make_word',{'documents':[doc]})
         assert 'next_context' in held
         rid=runtime.store.runs(s['id'])[0]['id']
         assert runtime.store.run(rid)['document_preflight']['status']=='output_changed'
         assert not runtime.store.run(rid).get('documents')
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=reviewed(provider)
     result=settled(c,request(c,s,'请起草一份模拟公告正文'),timeout=45)
     assert result['run']['status']=='incomplete',result['run'].get('reason')

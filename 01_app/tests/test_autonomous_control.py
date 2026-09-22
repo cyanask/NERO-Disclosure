@@ -27,13 +27,12 @@ def send_auto(c,s,text='信披咨询',**kw):
     return c.post(f"/api/chat/sessions/{s['id']}/runs",json={'text':text,'model_key':'fixture-a','request_id':str(uuid4()),**kw})
 
 
-def test_general_consultation_has_no_fake_company_and_requires_routing(control):
+def test_general_consultation_uses_native_tools_without_inventing_a_company(control):
     c,r,_=control;s=session(c)
     def model(p,emit,bridge,stop):
-        assert p['tools'][0]['name']=='route_request'
-        with pytest.raises(HTTPException):bridge('read_event',{})
-        reply=bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'一般信披规则问题'})
-        assert 'next_context' in reply
+        assert 'route_request' not in {t['name'] for t in p['tools']}
+        reply=bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
+        assert reply['data']['id']=='disclosure-consultation'
         assert bridge('read_event',{})['data']['bound'] is False
         emit({'type':'assistant','phase':'answer','message':1,'text':'信披咨询答复','stopReason':'stop'});emit({'type':'done'})
     r.runner=model;out=settled(c,send_auto(c,s))
@@ -45,12 +44,11 @@ def test_general_consultation_has_no_fake_company_and_requires_routing(control):
 def test_unrelated_request_refuses_even_if_client_posts_a_stage(control):
     c,r,_=control;s=session(c)
     def model(p,emit,bridge,stop):
-        answer=bridge('route_request',{'domain':'unrelated','intent':'consult','reason':'无关任务'})
-        assert answer['terminate']
-        with pytest.raises(HTTPException):bridge('read_event',{})
+        assert '只处理信息披露及本系统知识库' in p['system']
+        emit({'type':'assistant','phase':'answer','text':'无法回答无关请求。','stopReason':'stop'})
         emit({'type':'done'})
     r.runner=model;out=settled(c,send_auto(c,s,'写旅游攻略',stage='assessment'))
-    assert out['run']['stage']=='scope' and out['run']['status']=='completed'
+    assert out['run']['stage']=='chat' and out['run']['status']=='completed'
     assert any('无法回答' in x['body'].get('text','') for x in out['events'])
     assert c.get('/api/events').json()==[]
 
@@ -58,7 +56,7 @@ def test_unrelated_request_refuses_even_if_client_posts_a_stage(control):
 def test_workflow_auto_route_preserves_human_gate(control):
     c,r,_=control;e=event(c);s=session(c,e)
     def model(p,emit,bridge,stop):
-        reply=bridge('route_request',{'domain':'disclosure','intent':'workflow','reason':'用户要求判断披露义务'})
+        reply=bridge('prepare_disclosure_workflow',{'request_quote':p['prompt']})
         assert any(x['name']=='submit_candidate' for x in reply['next_context']['tools'])
         bridge('submit_candidate',{'result':candidate()});emit({'type':'done'})
     r.runner=model;out=settled(c,send_auto(c,s,expected_revision=e['revision']))
@@ -72,9 +70,9 @@ def test_knowledge_query_cannot_write_or_execute_workflow(control):
     from backend import library_admin
     before=[row['id'] for row in library_admin.state(r.root,'laws','chinext')['items']]
     def model(p,emit,bridge,stop):
-        reply=bridge('route_request',{'domain':'knowledge','intent':'query','reason':'查询知识库'})
+        reply=bridge('read_document_context',{})
         from backend.knowledge_ops import tools as knowledge_tools
-        assert {x['name'] for x in reply['next_context']['tools']}=={t['name'] for t in knowledge_tools()}
+        assert {t['name'] for t in knowledge_tools()} <= {x['name'] for x in p['tools']}
         with pytest.raises(HTTPException):bridge('submit_candidate',{'result':candidate()})
         items=bridge('knowledge_search',{'collection':'laws','query':'董事会'})['data']['items'];assert items
         proposal=bridge('knowledge_propose',{'operation':'delete','collection':'laws','ids':[items[0]['id']],'summary':'模拟删除预览'})
@@ -88,7 +86,7 @@ def test_knowledge_query_cannot_write_or_execute_workflow(control):
 def test_purge_cleans_session_runs_files_and_backup_without_touching_other_session(control):
     c,r,tmp=control;a=session(c);b=session(c)
     # Session ids are request-specific even when titles match.
-    def model(p,emit,bridge,stop):bridge('route_request',{'domain':'unrelated','intent':'consult','reason':'测试拒绝'})
+    def model(p,emit,bridge,stop):emit({'type':'assistant','text':'无法回答无关请求。','stopReason':'stop'})
     r.runner=model;out=settled(c,send_auto(c,a));rid=out['run']['id']
     assert c.get('/api/chat/sessions/'+a['id']+'/deletion-preview').status_code==409
     assert c.patch('/api/chat/sessions/'+a['id'],json={'archived':True}).status_code==200
@@ -113,7 +111,7 @@ def test_purge_cleans_session_runs_files_and_backup_without_touching_other_sessi
 def test_auto_intake_owns_only_new_event_and_purge_removes_it(control):
     c,r,tmp=control;s=session(c)
     def model(p,emit,bridge,stop):
-        reply=bridge('route_request',{'domain':'disclosure','intent':'workflow','reason':'准备判断真实事项','event':{'company_name':'隔离测试公司','title':'新事项','summary':'仅为工程测试的董事会事项','facts':{'event_date':'2026-09-08','assessment_as_of':'2026-09-08'},'output_mode':'text'}})
+        reply=bridge('prepare_disclosure_workflow',{'request_quote':p['prompt'],'output_mode':'text','event':{'company_name':'隔离测试公司','title':'新事项','summary':'仅为工程测试的董事会事项','facts':{'event_date':'2026-09-08','assessment_as_of':'2026-09-08'}}})
         assert reply['data']['stage']=='assessment';emit({'type':'done'})
     r.runner=model;out=settled(c,send_auto(c,s,'请判断隔离测试公司的事项'))
     assert out['run']['owns_event'];eid=out['run']['event_id'];assert not eid.startswith('conversation:')
@@ -385,7 +383,7 @@ def test_backend_does_not_display_unadmitted_model_text(control):
     legal_question='请补充当前需求涉及的具体事项。'
     def model(p,emit,bridge,stop):
         emit({'type':'assistant','text':'UNADMITTED_SENTINEL','phase':'answer','message':0})
-        bridge('route_request',{'domain':'unclear','intent':'consult','reason':'需求不明','question':legal_question})
+        bridge('request_information',{'questions':[legal_question]})
         emit({'type':'assistant','text':'UNADMITTED_SENTINEL','phase':'answer','message':1})
     r.runner=model;out=settled(c,send_auto(c,s,'帮我处理一下'))
     assert 'UNADMITTED_SENTINEL' not in json.dumps(out,ensure_ascii=False)

@@ -21,7 +21,6 @@ def test_download_read_admit_requires_original_and_browser_confirmation(gate_env
     monkeypatch.setattr(public_sources,'fetch',lambda url,search=False:(('<html><p>'+body+'</p></html>').encode(),'text/html',url))
     received={}
     def model(p,emit,bridge,stop):
-        bridge('route_request',{'domain':'knowledge','intent':'refresh','reason':'用户要求入库新法规'})
         source=bridge('knowledge_download',{'url':'https://www.neeq.com.cn/test-law'})['data'];received.update(source)
         page=bridge('knowledge_download_read',{'download_id':source['download_id'],'page':1})['data'];assert body in page['text']
         value={**law(),'id':'new-original-bound-test','article':'第一条','text':body,'effective_to':None,'replaces_source_ids':[]}
@@ -43,7 +42,6 @@ def test_knowledge_edit_delete_and_stale_preview(gate_env,monkeypatch):
     # Only copied fixture data is changed.
     added={**law(),'replaces_source_ids':[]};state=library_admin.state(root,'laws','chinext');library_admin.update(root,'laws',[added],state['fingerprint'],'chinext')
     def model(p,emit,bridge,stop):
-        bridge('route_request',{'domain':'knowledge','intent':'delete','reason':'用户要求删除指定测试条目'})
         bridge('knowledge_propose',{'operation':'delete','collection':'laws','ids':[added['id']],'summary':'删除单条测试法源'})
     r.runner=model;out=settled(c,send_auto(c,s,'删除指定测试条目'));change=out['run']['knowledge_change']
     endpoint='/api/chat/runs/'+out['run']['id']+'/knowledge-confirmation'
@@ -57,7 +55,6 @@ def test_template_is_created_before_confirmation_and_registered_after(gate_env,m
     c,_,root=gate_env;r=configure(c,monkeypatch);s=session(c)
     original=copy.deepcopy(library_admin.state(root,'profiles','chinext')['items'][0]);original['id']='profile-generated-fixture-'+str(uuid4());original['title']='隔离内容格式模板';original['case_evidence']=[];original['review_status']='untrusted-model-claim'
     def model(p,emit,bridge,stop):
-        bridge('route_request',{'domain':'knowledge','intent':'template','reason':'用户要求制作模板'})
         bridge('knowledge_propose',{'operation':'template','collection':'profiles','items':[original],'summary':'依据既有法源和案例制作候选模板'})
     r.runner=model;out=settled(c,send_auto(c,s,'制作模板'));assert out['run']['status']=='waiting_knowledge_confirmation',out
     change=out['run']['knowledge_change'];tpl=change['template'];assert (root/tpl['candidate_path']).is_file()
@@ -96,7 +93,6 @@ def test_empty_or_mismatched_edit_cannot_reach_confirmation(gate_env,monkeypatch
     c,_,root=gate_env;r=configure(c,monkeypatch);s=session(c)
     record=library_admin.state(root,'laws','chinext')['items'][0]
     def model(p,emit,bridge,stop):
-        bridge('route_request',{'domain':'knowledge','intent':'edit','reason':'编辑指定条目'})
         for payload in [
             {'ids':[record['id']],'items':[]},
             {'ids':['a-different-id'],'items':[{'id':record['id'],'title':'changed'}]},

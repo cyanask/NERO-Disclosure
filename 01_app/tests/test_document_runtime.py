@@ -47,14 +47,13 @@ def provider(runtime, build, gaps=None, consent=None):
     """Tools are available by domain; preflight still validates the document before saving."""
     def run(packet, emit, bridge, stop):
         emit({'type': 'started'})
-        routed = bridge('route_request', {'domain': 'disclosure', 'intent': 'document', 'reason': '用户要求制作Word'})
-        names = [t['name'] for t in routed['next_context']['tools']]
-        assert routed['next_context']['stage'] == 'document_preflight'
+        names = [t['name'] for t in packet['tools']]
+        assert 'route_request' not in names
         assert 'assess_document_readiness' in names and 'make_word' in names
         context = bridge('read_document_context', {})['data']
         documents = build(context, bridge, stop)
         assessment = {'documents': [readiness(document, (gaps or {}).get(document['title'], [])) for document in documents],
-                      'request_quote': packet['prompt'], 'decision': 'assess'}
+                      'request_quote': packet['prompt'], 'decision': 'assess', 'output': 'word'}
         if consent:
             assessment.update(decision='proceed_with_gaps', notice_id=consent, choice_quote=packet['prompt'])
         opened = bridge('assess_document_readiness', assessment)
@@ -109,9 +108,8 @@ def test_mid_workflow_announcement_batch_does_not_advance_or_confirm(client):
                                                     'statement':'拟提供财务资助1000万元。'}]), draft('事项分析')]
     gaps = {'财务资助公告草稿': [content_gap('审议情况', '董事会审议情况尚未提供')]}
     def notice(packet, emit, bridge, stop):
-        bridge('route_request', {'domain': 'disclosure', 'intent': 'document', 'reason': '用户要求制作Word'})
         documents = build(bridge('read_document_context', {})['data'], bridge, stop)
-        result = bridge('assess_document_readiness', {
+        result = bridge('assess_document_readiness', {'output':'word',
             'documents': [readiness(document, gaps.get(document['title'], [])) for document in documents],
             'request_quote': packet['prompt'], 'decision': 'assess'})
         assert result['terminate'] and result['data']['status'] == 'waiting_user', result
@@ -136,7 +134,6 @@ def test_no_file_tool_is_not_reported_as_completed(client):
     c, runtime, _ = client
     s, _ = new_session(c)
     def run(packet, emit, bridge, stop):
-        bridge('route_request', {'domain':'disclosure','intent':'document','reason':'制作文档'})
         emit({'type':'assistant','text':'文件已完成'})
         emit({'type':'done'})
     runtime.runner = reviewed(run)
@@ -153,7 +150,6 @@ def test_reported_five_requests_keep_consent_and_deliver_real_word(client):
            '直接给我先制造一个公告Word里面没有的资料先空着，我后面手工补。','就按照这样的内容制造Word。']
     def run(packet,emit,bridge,stop):
         word='Word' in packet['prompt']
-        bridge('route_request',{'domain':'disclosure','intent':'document' if word else 'announcement','reason':'承接同一公告的待补要求'})
         ctx=bridge('read_document_context',{})['data']
         template=next(t for t in ctx['templates'] if t['kind']=='management_change')
         old=next(iter(ctx['documents']),None)
@@ -163,7 +159,7 @@ def test_reported_five_requests_keep_consent_and_deliver_real_word(client):
         if old:
             document.update(document_id=old['document_id'],base_version=old['version'])
             if old.get('format')=='docx':document['text']=''
-        args={'documents':[readiness(document,gaps)],'request_quote':packet['prompt'],'decision':'assess'}
+        args={'output':'word' if word else 'text','documents':[readiness(document,gaps)],'request_quote':packet['prompt'],'decision':'assess'}
         # The model judges the request; the runtime only records the exact user message.
         if any(marker in packet['prompt'] for marker in ('待补','留空','空着')):
             args.update(decision='draft_with_placeholders',choice_quote=packet['prompt'])
@@ -172,7 +168,7 @@ def test_reported_five_requests_keep_consent_and_deliver_real_word(client):
         production={'documents':[document]}
         if not word:production['assessment']={'disclosure_needed':'uncertain','disclosure_scope':'董事会秘书变动','reason':'仅制作待补稿，具体事实尚未提供'}
         bridge('make_word' if word else 'save_announcement',production)
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(run)
     for text in texts:
         result=settled(c,request(c,s,text))
@@ -275,12 +271,11 @@ def test_cross_session_is_rejected_but_missing_basis_does_not_shorten_draft(clie
     text='会话问题及待核实的分析应完整保留。'
     basis=[{'statement':text,'source_id':'user:nonexistent','quote':'尚未定位的来源'}]
     def run(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','reason':'用户要求制作Word'})
         bridge('read_document_context',{})
-        bridge('assess_document_readiness',{'documents':[readiness(draft())],'request_quote':packet['prompt'],'decision':'assess'})
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft())],'request_quote':packet['prompt'],'decision':'assess'})
         result=bridge('make_word',{'documents':[draft(text=text,basis=basis)]})
         assert result['data']['business_state_changed'] is False
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(run)
     out=settled(c,request(c,other))
     assert out['run']['status']=='completed',out
@@ -327,8 +322,7 @@ def test_incomplete_profit_and_investment_draft_is_saved_with_gaps(client,text_o
             text='# 董事会决议公告\n一、利润分配\n拟分配2025年净利润，派发现金红利【待补：分红金额】。\n二、战略投资\n拟战略投资100万元。\n【待补：董事会届次和表决结果】',
             basis=[{'source_id':source['id'],'quote':'对国内一家公司战略投资100万','statement':'拟战略投资100万元。'}])
     def notice(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'announcement' if text_only else 'document','reason':'用户要求起草'})
-        result=bridge('assess_document_readiness',{'documents':[readiness(build(bridge),gaps)],
+        result=bridge('assess_document_readiness',{'output':'word','documents':[readiness(build(bridge),gaps)],
             'request_quote':packet['prompt'],'decision':'assess'})
         assert result['terminate'] and result['data']['status']=='waiting_user',result
         emit({'type':'done'})
@@ -338,15 +332,14 @@ def test_incomplete_profit_and_investment_draft_is_saved_with_gaps(client,text_o
     assert listing(c,s)['items']==[]
     notice_id=first['run']['document_preflight']['notice_id']
     def accept(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'announcement' if text_only else 'document','drafting_notice_id':notice_id,'reason':'用户接受已告知缺口'})
         document=build(bridge)
-        opened=bridge('assess_document_readiness',{'documents':[readiness(document,gaps)],'request_quote':packet['prompt'],
+        opened=bridge('assess_document_readiness',{'output':'text' if text_only else 'word','documents':[readiness(document,gaps)],'request_quote':packet['prompt'],
             'decision':'proceed_with_gaps','notice_id':notice_id,'choice_quote':packet['prompt']})
         assert ('save_announcement' if text_only else 'make_word') in [t['name'] for t in opened['next_context']['tools']],opened
         args={'documents':[document]}
         if text_only:args['assessment']={'disclosure_needed':'yes','disclosure_scope':'利润分配和战略投资','reason':'用户接受已告知缺口后保存待补正文'}
         bridge('save_announcement' if text_only else 'make_word',args)
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(accept)
     out=settled(c,request(c,s,'先按现有资料起草，缺项标注待补。'))
     assert out['run']['status']=='completed',out
@@ -366,9 +359,8 @@ def test_declared_gap_must_be_marked_in_the_body(client):
     gap=content_gap('会议日期和表决结果','董事会会议日期与表决结果尚未提供')
     body='# 分析材料\n\n一、当前结论\n会议日期为【待补：会议日期和表决结果】。\n\n二、后续安排\n请核对实施状态。'
     def notice(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','reason':'用户要求制作Word'})
         bridge('read_document_context',{})
-        result=bridge('assess_document_readiness',{'documents':[readiness(draft(),[gap])],'request_quote':packet['prompt'],'decision':'assess'})
+        result=bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft(),[gap])],'request_quote':packet['prompt'],'decision':'assess'})
         assert result['terminate'] and result['data']['status']=='waiting_user',result
         emit({'type':'done'})
     runtime.runner = reviewed(notice)
@@ -377,15 +369,14 @@ def test_declared_gap_must_be_marked_in_the_body(client):
     notice_id=first['run']['document_preflight']['notice_id']
     held=[]
     def accept(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','drafting_notice_id':notice_id,'reason':'用户接受已告知缺口'})
         bridge('read_document_context',{})
-        bridge('assess_document_readiness',{'documents':[readiness(draft(),[gap])],'request_quote':packet['prompt'],
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft(),[gap])],'request_quote':packet['prompt'],
                                            'decision':'proceed_with_gaps','notice_id':notice_id,'choice_quote':packet['prompt']})
         missing=bridge('make_word',{'documents':[draft(pending=['会议日期和表决结果'])]})
         held.append(missing['data']['message'])
         result=bridge('make_word',{'documents':[draft(pending=['会议日期和表决结果'],text=body)]})
         assert result['data']['business_state_changed'] is False
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(accept)
     out=settled(c,request(c,s,'先按现有资料制作Word，缺项标注待补。'))
     assert out['run']['status']=='completed',out
@@ -403,15 +394,14 @@ def test_anchored_revision_preserves_original_without_forced_evidence_review(cli
     source=legacy_manual_source(runtime,s['id'],raw)
     runtime.semantic_review=lambda rid,run,items,stop: ([{'item_id':r['item_id'],'verdict':'insufficient','reason':'变更金额没有依据'} for r in items],'fixture')
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','document_action':'revise','reason':'局部修改'})
         read=bridge('read_document',{'document_id':source['document_id']})['data']
         anchor=next(b for b in read['blocks'] if b['text']=='金额为1000万元。')
         document=draft(title='人工修改稿',document_id=source['document_id'],base_version=1,template_id='source:current',text='',
                        edits=[{'block_id':anchor['id'],'original':'1000','replacement':'987654'}])
-        bridge('assess_document_readiness',{'documents':[readiness(document)],'request_quote':packet['prompt'],'decision':'assess'})
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(document)],'request_quote':packet['prompt'],'decision':'assess'})
         result=bridge('make_word',{'documents':[document]})
         assert result['data']['documents']
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(runner)
     out=settled(c,request(c,s,'修订当前Word，缺项标注待补。'))
     assert out['run']['status']=='completed',out
@@ -445,11 +435,10 @@ def test_readiness_switch_records_the_stamp_the_worker_reports(client):
     c,runtime,_=client;s,_=new_session(c)
     stamps=[]
     def run(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','reason':'用户要求制作Word'})
-        opened=bridge('assess_document_readiness',{'documents':[readiness(draft())],'request_quote':packet['prompt'],'decision':'assess'})
+        opened=bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft())],'request_quote':packet['prompt'],'decision':'assess'})
         stamps.append(opened['next_context']['system_sha256'])
         bridge('make_word',{'documents':[draft()]})
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(run)
     out=settled(c,request(c,s))
     assert out['run']['status']=='completed',out
@@ -471,9 +460,8 @@ def test_saved_draft_keeps_consent_and_identity_for_later_turns(client):
     gap=content_gap('会议日期','董事会会议日期尚未提供')
     body='# 分析材料\n\n一、当前结论\n会议日期为【待补：会议日期】。\n\n二、后续安排\n请核对实施状态。'
     def notice(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','reason':'用户要求制作Word'})
         bridge('read_document_context',{})
-        result=bridge('assess_document_readiness',{'documents':[readiness(draft(text=body),[gap])],'request_quote':packet['prompt'],'decision':'assess'})
+        result=bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft(text=body),[gap])],'request_quote':packet['prompt'],'decision':'assess'})
         assert result['terminate'] and result['data']['status']=='waiting_user',result
         emit({'type':'done'})
     runtime.runner = reviewed(notice)
@@ -481,13 +469,12 @@ def test_saved_draft_keeps_consent_and_identity_for_later_turns(client):
     assert first['run']['status']=='waiting_user',first
     notice_id=first['run']['document_preflight']['notice_id']
     def accept(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','drafting_notice_id':notice_id,'reason':'用户接受已告知缺口'})
         bridge('read_document_context',{})
-        opened=bridge('assess_document_readiness',{'documents':[readiness(draft(text=body),[gap])],'request_quote':packet['prompt'],
+        opened=bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft(text=body),[gap])],'request_quote':packet['prompt'],
             'decision':'proceed_with_gaps','notice_id':notice_id,'choice_quote':packet['prompt']})
         assert 'make_word' in [t['name'] for t in opened['next_context']['tools']],opened
         bridge('make_word',{'documents':[draft(text=body)]})
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(accept)
     second=settled(c,request(c,s,'先按现有资料制作Word，缺项标注待补。'))
     assert second['run']['status']=='completed',second
@@ -496,13 +483,12 @@ def test_saved_draft_keeps_consent_and_identity_for_later_turns(client):
     assert stored['documents'][0]['document_id']==row['document_id']
     assert [record['key'] for record in stored['accepted_content']]==[row['document_id']]
     def revise(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','reason':'继续修订同一文稿'})
         bridge('read_document_context',{})
         document=draft(document_id=row['document_id'],base_version=1,text=body+'修订。')
-        opened=bridge('assess_document_readiness',{'documents':[readiness(document,[gap])],'request_quote':packet['prompt'],'decision':'assess'})
+        opened=bridge('assess_document_readiness',{'output':'word','documents':[readiness(document,[gap])],'request_quote':packet['prompt'],'decision':'assess'})
         assert 'make_word' in [t['name'] for t in opened['next_context']['tools']],opened
         bridge('make_word',{'documents':[document]})
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner = reviewed(revise)
     third=settled(c,request(c,s,'请核对当前Word并生成新版本'))
     assert third['run']['status']=='completed',third
@@ -538,7 +524,7 @@ def test_restart_reconciles_run_but_preserves_saved_document(client):
     finally:recovered.close()
 
 
-def test_document_can_research_but_cannot_mutate_the_knowledge_library(client,monkeypatch):
+def test_document_can_research_but_rejects_an_invalid_knowledge_change(client,monkeypatch):
     from backend import public_sources
     c,runtime,_=client;s,_=new_session(c)
     monkeypatch.setattr(public_sources,'search',lambda *a:{'items':[]})
@@ -546,7 +532,7 @@ def test_document_can_research_but_cannot_mutate_the_knowledge_library(client,mo
         assert bridge('knowledge_web_search',{'query':'公开法规核查'})['data']=={'items':[]}
         from fastapi import HTTPException
         with pytest.raises(HTTPException) as error:bridge('knowledge_propose',{'collection':'laws','items':[]})
-        assert error.value.status_code==403
+        assert error.value.status_code==422
         return [draft()]
     provider(runtime,build)
     assert settled(c,request(c,s))['run']['status']=='completed'
@@ -634,20 +620,19 @@ def test_complete_draft_is_saved_without_forced_evidence_review(client,kind,text
     runtime.semantic_review=forbidden_review
     skill='name: disclosure-announcement-drafting'
     def runner(packet,emit,bridge,stop):
-        args={'domain':'disclosure','intent':'announcement' if text_only else 'document','reason':'完整整理文稿'}
-        if declare_kind:args['document_kind']=kind
-        routed=bridge('route_request',args)
-        assert (skill in routed['next_context']['system']) == (kind=='announcement' and declare_kind)
+        if kind=='announcement' and declare_kind:
+            loaded=bridge('load_business_skill',{'skill_id':'disclosure-announcement-drafting'})
+            assert skill in loaded['data']['instructions']
         ctx=bridge('read_document_context',{})['data']
         tid=next(t['id'] for t in ctx['templates'] if t.get('kind')=='related_transaction') if kind=='announcement' else 'builtin:analysis'
         doc=draft('完整文稿',kind=kind,template_id=tid,text=text)
         doc.pop('basis')  # Non-announcements and announcements may omit bindings.
-        opened=bridge('assess_document_readiness',{'documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
-        assert (skill in opened['next_context']['system']) == (kind=='announcement')
+        opened=bridge('assess_document_readiness',{'output':'text' if text_only else 'word','documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
+        assert opened['data']['status'] in ('ready','authorized')
         production={'documents':[doc]}
         if text_only:production['assessment']={'disclosure_needed':'uncertain','disclosure_scope':'测试事项','reason':'供用户审阅'}
         assert bridge('save_announcement' if text_only else 'make_word',production)['data']['documents']
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'请完整整理为'+('公告正文' if text_only else 'Word')+'。'))
     assert out['run']['status']=='completed',out
@@ -669,18 +654,17 @@ def test_announcement_revision_loads_skill_from_target_document(client):
     assert settled(c,request(c,s))['run']['status']=='completed'
     row=listing(c,s)['items'][0]
     def runner(packet,emit,bridge,stop):
-        routed=bridge('route_request',{'domain':'disclosure','intent':'document','document_action':'revise',
-            'target_document_id':row['document_id'],'reason':'修改已有公告Word'})
-        assert 'name: disclosure-announcement-drafting' in routed['next_context']['system']
+        loaded=bridge('load_business_skill',{'skill_id':'disclosure-announcement-drafting'})
+        assert 'name: disclosure-announcement-drafting' in loaded['data']['instructions']
         doc=draft(row['title'],kind='announcement',document_id=row['document_id'],base_version=1,
                   template_id='source:current',text='',pending=row['pending'])
         read=bridge('read_document',{'document_id':row['document_id']})['data']
         block=next(b for b in read['blocks'] if b['text']=='请核对事项实施安排。')
         doc['edits']=[{'block_id':block['id'],'original':block['text'],'replacement':'请核对最新实施安排。'}]
-        bridge('assess_document_readiness',{'documents':[readiness(doc,[content_gap(p) for p in row['pending']])],
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(doc,[content_gap(p) for p in row['pending']])],
             'request_quote':packet['prompt'],'decision':'draft_with_placeholders','choice_quote':packet['prompt']})
         bridge('make_word',{'documents':[doc]})
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'将公告中“请核对事项实施安排。”改为“请核对最新实施安排。”，先制作Word，缺项标注待补。'))
     assert out['run']['status']=='completed',out

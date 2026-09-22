@@ -15,9 +15,8 @@ def test_existing_word_appears_without_event_and_updates_to_latest_version(clien
     gap=content_gap('审议日期','董事会审议日期尚未提供')
     body='# 分析材料\n\n一、当前结论\n审议日期为【待补：审议日期】。\n\n二、后续安排\n请核对实施状态。'
     def notice(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'document','reason':'用户要求制作Word'})
         bridge('read_document_context',{})
-        result=bridge('assess_document_readiness',{'documents':[readiness(draft(text=body),[gap])],
+        result=bridge('assess_document_readiness',{'output':'word','documents':[readiness(draft(text=body),[gap])],
                                                    'request_quote':packet['prompt'],'decision':'assess'})
         assert result['terminate'] and result['data']['status']=='waiting_user',result
         emit({'type':'done'})

@@ -91,7 +91,7 @@ def test_web_import_automatically_starts_pi_classification(workspace,monkeypatch
     c,root,app=workspace;rt=app.state.pi_runtime
     rt.config_override={'models':[{'key':'test','label':'Test','id':'test-model','provider':'fixture','api':'openai-completions','enabled':True,'baseUrl':'http://127.0.0.1:1','api_key_env':'DISCLOSURE_CLASSIFICATION_TEST','contextWindow':200000,'maxTokens':4096}],'routes':{'default':'test'}}
     def classify(packet,emit,bridge,stop):
-        d=json.loads(packet['system'].split('\n',1)[1])['documents'][0]
+        d=json.loads(packet['system'].rsplit('\n',1)[1])['documents'][0]
         bridge('submit_candidate',{'result':{'items':[{'id':d['id'],'status':'classified','tags':['board'],'forms':['resolution'],'page':1,'quote':d['title'],'reason':'标题为董事会会议决议'}]}})
         emit({'type':'done'})
     rt.runner=classify

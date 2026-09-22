@@ -19,14 +19,12 @@ def test_reorganize_memo_can_replace_short_body_and_retains_old_version(client,s
     text='\n'.join(f'第{i}项：完整保留原会话中的问题、条件、程序说明和待核事项。' for i in range(100))[:2422]
     def runner(packet,emit,bridge,stop):
         # Reproduce the real route: the model chose revise for "重新整理".
-        routed=bridge('route_request',{'domain':'disclosure','intent':'document','document_kind':'analysis',
-            'document_action':'revise','target_document_id':previous['document_id'],'reason':'重新整理备忘录'})
-        assert '不把已有短稿当作内容范围' in routed['next_context']['system']
+        assert 'make_word' in {t['name'] for t in packet['tools']}
         bridge('read_document',{'document_id':previous['document_id']})
         doc=draft('备忘录',document_id=previous['document_id'],base_version=1,text=text)
-        bridge('assess_document_readiness',{'documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
+        bridge('assess_document_readiness',{'output':'word','documents':[readiness(doc)],'request_quote':packet['prompt'],'decision':'assess'})
         assert bridge('make_word',{'documents':[doc]})['data']['documents']
-        emit({'type':'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type':'done'})
     runtime.runner=runner
     out=settled(c,request(c,s,'请重新整理成备忘录word'))
     assert out['run']['status']=='completed',out

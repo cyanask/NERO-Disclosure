@@ -20,12 +20,11 @@ def existing_word(runtime,run,identity=None):
     return candidates[0] if len(candidates)==1 else None
 
 
-def confirm_text(runtime,run,args,*,continue_to_word=False):
+def confirm_text(runtime,run,args):
     user=next((r for r in runtime.store.journal(run['id']) if r['kind']=='user'),None)
     text=str((user or {}).get('body',{}).get('text',''))
     confirmation=text.strip().rstrip('。！! ')
-    if continue_to_word:
-        confirmation=re.sub(r'[,，。；;\s]*(?:并|然后|再)?(?:请)?(?:生成|制作|导出)(?:为|成)?(?:Word|docx)(?:文档|文件)?$', '', confirmation,flags=re.I)
+    confirmation=re.sub(r'[,，。；;\s]*(?:并|然后|再)?(?:请)?(?:生成|制作|导出)(?:为|成)?(?:Word|docx)(?:文档|文件)?$', '', confirmation,flags=re.I)
     normalized=re.sub(r'[\s，,。.!！；;]', '', confirmation)
     affirmations={'确认','确认正文','确认当前正文','确认这个版本','确认当前版本','确认本版','确认这版','正文确认','这版确认','认可正文','同意正文','确认全部正文','全部确认'}
     if normalized not in affirmations:
@@ -44,7 +43,6 @@ def confirm_text(runtime,run,args,*,continue_to_word=False):
             'version':t['version'],'sha256':t['sha256'],'decision':'accepted','content_reviewed':True,'visual_reviewed':False,
             'source_run_id':run['id'],'source_message_seq':user['seq']}) for t in targets]
         runtime.trace(run['id'],'text_confirmed',{'documents':confirmed,'user_message_seq':user['seq'],'business_state_changed':False})
-        if not continue_to_word:
-            runtime.store.update(run['id'],stage='confirmation',outcome='completed',documents=confirmed,skill_status='not_applicable')
-            runtime.trace(run['id'],'assistant',{'phase':'final','stopReason':'stop','text':'已记录当前公告正文版本的确认。需要文件时可直接说“制作成 Word”；后续修改会保留新版本。'})
+        runtime.store.update(run['id'],stage='confirmation',outcome='completed',documents=confirmed,skill_status='not_applicable')
+        runtime.trace(run['id'],'assistant',{'phase':'final','stopReason':'stop','text':'已记录当前公告正文版本的确认，后续修改将另存版本。'})
     return {'data':{'status':'text_confirmed','documents':confirmed,'business_state_changed':False},'terminate':True}

@@ -18,8 +18,7 @@ def test_recorded_choice_recovers_only_for_same_uncancelled_document(client, sta
     gap = content_gap('实施日期')
 
     def prepared_then_failed(packet, emit, bridge, stop):
-        bridge('route_request', {'domain': 'disclosure', 'intent': 'document', 'document_kind': 'analysis', 'reason': '制作工作稿'})
-        value = bridge('assess_document_readiness', {
+        value = bridge('assess_document_readiness', {'output':'word',
             'documents': [readiness(draft('分析工作稿'), [gap])], 'request_quote': packet['prompt'],
             'decision': 'draft_with_placeholders', 'choice_quote': packet['prompt'],
         })
@@ -35,9 +34,8 @@ def test_recorded_choice_recovers_only_for_same_uncancelled_document(client, sta
     runtime.store.update(first['run']['id'], status=status)
 
     def resume(packet, emit, bridge, stop):
-        bridge('route_request', {'domain': 'disclosure', 'intent': 'document', 'document_kind': 'analysis', 'reason': '继续制作工作稿'})
         document = draft(new_title, text='# '+new_title+'\n\n实施日期：【待补：实施日期】', pending=['实施日期'])
-        value = bridge('assess_document_readiness', {
+        value = bridge('assess_document_readiness', {'output':'word',
             'documents': [readiness(document, [gap])], 'request_quote': packet['prompt'], 'decision': 'assess',
         })
         if should_continue:
@@ -45,7 +43,7 @@ def test_recorded_choice_recovers_only_for_same_uncancelled_document(client, sta
             bridge('make_word', {'documents': [document]})
         else:
             assert value['terminate'] and value['data']['status'] == 'waiting_user'
-        emit({'type': 'done'})
+        emit({'type':'assistant','phase':'answer','stopReason':'stop','text':'本轮测试操作已结束，以登记回执为准。'});emit({'type': 'done'})
 
     runtime.runner = resume
     second = settled(c, request(c, session, '继续生成Word。'))

@@ -7,7 +7,7 @@ def test_public_commentary_is_recorded_but_never_completes_a_consultation(client
     c,runtime,_=client
     session=runtime.store.create_session('chinext','','过程说明回归',str(uuid4()))
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'测试过程消息'})
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         emit({'type':'assistant','text':'我会先说明适用条件，再整理办理步骤。','phase':'progress','stopReason':'toolUse','message':1})
         emit({'type':'done'})
     runtime.runner=runner
@@ -22,7 +22,7 @@ def test_process_does_not_replace_final_answer_or_expose_reasoning(client):
     c,runtime,_=client
     session=runtime.store.create_session('chinext','','过程与结果分离',str(uuid4()))
     def runner(packet,emit,bridge,stop):
-        bridge('route_request',{'domain':'disclosure','intent':'consult','reason':'测试完成'})
+        bridge('load_business_skill',{'skill_id':'disclosure-consultation'})
         emit({'type':'assistant','text':'我会先核对适用范围。','phase':'progress','stopReason':'toolUse','message':1})
         emit({'type':'thinking','text':'PRIVATE_REASONING_SENTINEL'})
         emit({'type':'assistant','text':'当前资料不足，无法确定具体办理期限。','phase':'answer','stopReason':'stop','message':2})

@@ -176,9 +176,7 @@ def run_flow(c,runtime,verdict_text):
             emit({'type':'assistant','message':0,'phase':'answer','stopReason':'stop','text':verdict_text})
             emit({'type':'done'});return
         emit({'type':'started'})
-        if packet.get('stage')=='auto':
-            # 当前入口先做信披范围与意图分流，再由分流结果进入判断节点。
-            bridge('route_request',{'domain':'disclosure','intent':'workflow','reason':'隔离测试：办理当前事项的判断节点','stage':'assessment'})
+        bridge('prepare_disclosure_workflow',{'request_quote':packet['prompt']})
         if not submitted['done']:
             submitted['done']=True
             reply=bridge('submit_candidate',{'result':candidate()})

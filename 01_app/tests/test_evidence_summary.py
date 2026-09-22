@@ -157,6 +157,7 @@ def test_runtime_records_success_failure_and_cache_without_changing_tool_respons
     from backend.pi_runtime import PiRuntime
     saved=[]
     runtime=object.__new__(PiRuntime)
+    runtime.store=SimpleNamespace(run=lambda rid:{})
     runtime.trace=lambda rid,kind,body:saved.append((kind,body))
     response={'data':{'collection':'laws','items':[LAW],'total':1,'cache_hit':True}}
     runtime._bridge=lambda *args:response

@@ -28,7 +28,7 @@ def wait(rt,rid):
 
 
 def valid_runner(packet,emit,bridge,stop):
-    context=json.loads(packet['system'].split('\n',1)[1]);items=[]
+    context=json.loads(packet['system'].rsplit('\n',1)[1]);items=[]
     emit({'type':'started'})
     assert set(t['name'] for t in packet['tools'])=={'read_announcement_page','submit_candidate'}
     for d in context['documents']:
@@ -66,7 +66,7 @@ def test_no_result_not_success_and_cancel_dedup(tmp_path,monkeypatch):
 def test_cross_company_forged_quote_and_manual_protected(tmp_path,monkeypatch):
     make_catalog(tmp_path,'300001',['2025年年度报告']);make_catalog(tmp_path,'300002',['2025年年度报告'])
     def attempt(packet,emit,bridge,stop):
-        context=json.loads(packet['system'].split('\n',1)[1]);d=context['documents'][0]
+        context=json.loads(packet['system'].rsplit('\n',1)[1]);d=context['documents'][0]
         with pytest.raises(HTTPException):bridge('read_announcement_page',{'id':'300002-0','page':1})
         with pytest.raises(HTTPException):bridge('submit_candidate',{'result':{'items':[{'id':d['id'],'status':'classified','tags':['annual'],'forms':['full'],'page':1,'quote':'伪造的依据','reason':'测试'}]}})
         valid_runner(packet,emit,bridge,stop)

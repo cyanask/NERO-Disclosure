@@ -412,18 +412,19 @@ class PiRuntime:
         if stop.is_set():raise HTTPException(409,'执行已取消')
         run=self.store.run(rid);eid=run['event_id'];stage=run['stage']
         if run.get('outcome'):raise HTTPException(409,'本轮已到结束或人工确认边界，以真实回执为准')
-        registered={t['name'] for t in self.tools(stage,{})}
-        if name not in registered:raise HTTPException(422,'工具未登记；请按本轮业务能力目录中的真实名称调用')
         if stage=='company_lookup':
             from .company_lookup import bridge
             return bridge(self,rid,name,args,stop)
         if stage=='classification':
             from .announcement_review import bridge
             return bridge(self,rid,name,args,stop)
+        registered={t['name'] for t in self.tools(stage,{})}
+        if name not in registered:raise HTTPException(422,'工具未登记；请按本轮业务能力目录中的真实名称调用')
         if name=='load_business_skill':
             from .stage_skills import by_id
             if not isinstance(args,dict) or set(args)!={'skill_id'} or not isinstance(args['skill_id'],str):raise HTTPException(422,'请使用目录中的Skill编号')
             skill=by_id(self.root,args['skill_id'])
+            self.store.update(rid,skill_status='loaded',skill={k:v for k,v in skill.items() if k not in ('instructions','references')})
             self.trace(rid,'skill_loaded',{k:v for k,v in skill.items() if k not in ('instructions','references')})
             return {'data':skill}
         if name=='prepare_disclosure_workflow':return self.prepare_disclosure_workflow(rid,args)
@@ -842,6 +843,7 @@ class PiRuntime:
 
     def work(self,run,payload,model,stop):
         started_at=time.monotonic();rid=run['id'];threading.current_thread().pi_secrets=(model['apiKey'],)
+        status,reason='failed','本轮异常退出；已登记结果保留，请查看执行记录。'
         try:
             if stop.is_set():raise HTTPException(409,'已取消')
             phase_started=time.monotonic()
